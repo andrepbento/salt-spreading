@@ -106,6 +106,7 @@ class Problem(
         self.all_links |= {(a[1], a[0]) for a in self.edges_required.keys()}
         self.U = {n["label"]: n for n in self.data.U}
 
+
     def __str__(self) -> str:
         return str(self.data)
 
@@ -117,18 +118,30 @@ class Problem(
             else:
                 graph.add_node(node, u = False)
 
-        for arc in self.arcs:
-            # print("ARC", arc)
-            graph.add_edge(arc[0], arc[1])
+        # print("ITEMS:", self.arcs.items())
+        for item in self.arcs.items():
+            # print("ITEM", item)
+            arc = item[0]
+            time = item[1]["time"]
+            lenght = item[1]["len"]
+            graph.add_edge(arc[0], arc[1], time=time, lenght=lenght)
 
-        for arc in self.arcs_required:
+        for item in self.arcs_required.items():
             # print("ARC_REQUIRED", arc)
-            graph.add_edge(arc[0], arc[1])
+            arc = item[0]
+            time = item[1]["time"]
+            lenght = item[1]["len"]
+            dem = item[1]["dem"]
+            graph.add_edge(arc[0], arc[1], time=time, lenght=lenght, dem=dem)
 
-        for edge in self.edges_required:
+        for item in self.edges_required.items():
             # print("EDGE_REQUIRED", edge)
-            graph.add_edge(edge[0], edge[1])
-            graph.add_edge(edge[1], edge[0])
+            arc = item[0]
+            time = item[1]["time"]
+            lenght = item[1]["len"]
+            dem = item[1]["dem"]
+            graph.add_edge(arc[0], arc[1], time=time, lenght=lenght, dem=dem)
+            graph.add_edge(arc[1], arc[0], time=time, lenght=lenght, dem=dem)
 
         return graph
 
@@ -218,9 +231,15 @@ if __name__ == "__main__":
     problem = Problem.from_textio(sys.stdin)
 
     original_graph = problem.create_graph()
+    for item_edge in original_graph.edges.items():
+        print("iEdge", item_edge)
+
     dual_graph = problem.create_dual_graph(original_graph)
 
-    problem.print_graph(dual_graph)
+    for edge in dual_graph.edges:
+        print("edge", edge)
+
+    # problem.print_graph(dual_graph)
 
     # log.info(problem)
 
