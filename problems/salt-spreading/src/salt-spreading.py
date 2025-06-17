@@ -3,25 +3,30 @@ import logging
 import sys
 from dataclasses import dataclass
 from logging import getLogger
-from typing import Self, TextIO, final
+from typing import Optional, Protocol, Self, TextIO, TypeVar, final
 
 import jsonschema
 import matplotlib.pyplot as plt
 import networkx
-from roar_net_api.operations import (SupportsApplyMove,
-                                     SupportsConstructionNeighbourhood,
-                                     SupportsCopySolution,
-                                     SupportsEmptySolution,
-                                     SupportsLocalNeighbourhood,
-                                     SupportsLowerBound,
-                                     SupportsLowerBoundIncrement,
-                                     SupportsMoves, SupportsObjectiveValue,
-                                     SupportsObjectiveValueIncrement,
-                                     SupportsRandomMove,
-                                     SupportsRandomMovesWithoutReplacement,
-                                     SupportsRandomSolution)
+from roar_net_api.operations import (
+    SupportsApplyMove,
+    SupportsConstructionNeighbourhood,
+    SupportsCopySolution,
+    SupportsEmptySolution,
+    SupportsLocalNeighbourhood,
+    SupportsLowerBound,
+    SupportsLowerBoundIncrement,
+    SupportsMoves,
+    SupportsObjectiveValue,
+    SupportsObjectiveValueIncrement,
+    SupportsRandomMove,
+    SupportsRandomMovesWithoutReplacement,
+    SupportsRandomSolution,
+)
+
 
 log = getLogger(__name__)
+
 
 # ---------------------------------- Problem --------------------------------
 @dataclass(
@@ -45,6 +50,38 @@ class AttrDict:
         return "\n".join(
             f"{k}: {v}" for k, v in self.__dict__.items() if not k.startswith("_")
         )
+
+
+@final
+class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound):
+    def __init__(self, problem, representation: dict):
+        self.problem = problem
+        self.representation = representation
+
+    def __str__(self) -> str:
+        return "\n".join(
+            f"{k}: {v}" for k, v in self.representation.items() if not k.startswith("_")
+        )
+
+    def __repr__(self) -> str:
+        return f"Solution({self.representation})"
+
+    @property
+    def is_feasible(self) -> bool:
+        pass
+
+    def to_textio(self, f: TextIO) -> None:
+        print(self.__str__())
+
+    def copy_solution(self) -> Self:
+        pass
+
+    def objective_value(self) -> Optional[int]:
+        pass
+
+    def lower_bound(self) -> int:
+        pass
+
 
 @final
 class Problem(
@@ -75,7 +112,7 @@ class Problem(
 
     def __str__(self) -> str:
         return str(self.data)
-    
+
     def create_graph(self) -> networkx.DiGraph:
         graph = networkx.DiGraph()
         for node in self.nodes:
@@ -93,7 +130,7 @@ class Problem(
             # print("EDGE_REQUIRED", edge)
             graph.add_edge(edge[0], edge[1])
             graph.add_edge(edge[1], edge[0])
-        
+
     def print_graph(self, graph: networkx.DiGraph) -> None:
         networkx.draw(graph, with_labels=True)
         plt.show()
@@ -128,8 +165,8 @@ class Problem(
             sys.exit(0)
         return cls(data)  # , data.name)
 
-    # def empty_solution(self) -> Solution:
-    #     return Solution(self, [0], set(range(1, self.n)), 0)
+    def empty_solution(self) -> Solution:
+        return Solution(self, {key: list() for key in self.nodes.keys()})
 
     # def random_solution(self) -> Solution:
     #     c = list(range(1, self.n))
@@ -144,7 +181,9 @@ class Problem(
 if __name__ == "__main__":
     import roar_net_api.algorithms as alg
 
-    logging.basicConfig(stream=sys.stderr, level="INFO", format="%(levelname)s;%(asctime)s;%(message)s")
+    logging.basicConfig(
+        stream=sys.stderr, level="INFO", format="%(levelname)s;%(asctime)s;%(message)s"
+    )
 
     log.info("Salt spreading problem")
 
@@ -154,11 +193,14 @@ if __name__ == "__main__":
 
     # log.info(problem)
 
+    instance = problem.empty_solution()
+    print(f"Empty solution: {instance}")
+
     # Run greedy construction to get an initial solution
-    solution = alg.greedy_construction(problem)
+    # solution = alg.greedy_construction(problem)
     # # solution = alg.beam_search(problem, bw=10)
     # # solution = alg.grasp(problem, 30.0)
-    log.info(f"Objective value after constructive search: {solution.objective_value()}")
+    # log.info(f"Objective value after constructive search: {solution.objective_value()}")
 
     # # Run simulated annealing to improve the previous solution
     # solution = alg.sa(problem, solution, 10.0, 30.0)
