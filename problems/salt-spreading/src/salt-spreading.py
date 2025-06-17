@@ -8,22 +8,18 @@ from typing import Optional, Protocol, Self, TextIO, TypeVar, final
 import jsonschema
 import matplotlib.pyplot as plt
 import networkx
-from roar_net_api.operations import (
-    SupportsApplyMove,
-    SupportsConstructionNeighbourhood,
-    SupportsCopySolution,
-    SupportsEmptySolution,
-    SupportsLocalNeighbourhood,
-    SupportsLowerBound,
-    SupportsLowerBoundIncrement,
-    SupportsMoves,
-    SupportsObjectiveValue,
-    SupportsObjectiveValueIncrement,
-    SupportsRandomMove,
-    SupportsRandomMovesWithoutReplacement,
-    SupportsRandomSolution,
-)
-
+from roar_net_api.operations import (SupportsApplyMove,
+                                     SupportsConstructionNeighbourhood,
+                                     SupportsCopySolution,
+                                     SupportsEmptySolution,
+                                     SupportsLocalNeighbourhood,
+                                     SupportsLowerBound,
+                                     SupportsLowerBoundIncrement,
+                                     SupportsMoves, SupportsObjectiveValue,
+                                     SupportsObjectiveValueIncrement,
+                                     SupportsRandomMove,
+                                     SupportsRandomMovesWithoutReplacement,
+                                     SupportsRandomSolution)
 
 log = getLogger(__name__)
 
@@ -116,7 +112,10 @@ class Problem(
     def create_graph(self) -> networkx.DiGraph:
         graph = networkx.DiGraph()
         for node in self.nodes:
-            graph.add_node(node)
+            if node in self.U:
+                graph.add_node(node, u = True)
+            else:
+                graph.add_node(node, u = False)
 
         for arc in self.arcs:
             # print("ARC", arc)
@@ -130,6 +129,35 @@ class Problem(
             # print("EDGE_REQUIRED", edge)
             graph.add_edge(edge[0], edge[1])
             graph.add_edge(edge[1], edge[0])
+
+        return graph
+
+    def create_dual_graph(self, graph: networkx.DiGraph) -> networkx.DiGraph:
+        dual_graph = networkx.DiGraph()
+        for edge in graph.edges:
+            # print("EDGE", edge)
+            # dual_graph.add_node(f"{edge[0]},{edge[1]}")
+            dual_graph.add_node(edge)
+
+        for node in dual_graph.nodes:
+            print("NODE", node)
+            exit_node = node[1]
+            # print("EXIT_NODE", exit_node
+            print("NODE[EXIT_NODE]", graph.nodes[exit_node])
+            if graph.nodes[exit_node]["u"]:
+                out_edges = graph.out_edges(exit_node)
+                # print("OUT_EDGES", out_edges)
+                for out_edge in out_edges:
+                    dual_graph.add_edge(node, out_edge)
+            else:
+                out_edges = graph.out_edges(exit_node)
+                # print("OUT_EDGES", out_edges)
+                for out_edge in out_edges:
+                    permuted_node = (out_edge[1], out_edge[0])
+                    if node != permuted_node:
+                        dual_graph.add_edge(node, out_edge)
+
+        return dual_graph
 
     def print_graph(self, graph: networkx.DiGraph) -> None:
         networkx.draw(graph, with_labels=True)
@@ -189,7 +217,10 @@ if __name__ == "__main__":
 
     problem = Problem.from_textio(sys.stdin)
 
-    problem.create_graph()
+    original_graph = problem.create_graph()
+    dual_graph = problem.create_dual_graph(original_graph)
+
+    problem.print_graph(dual_graph)
 
     # log.info(problem)
 
