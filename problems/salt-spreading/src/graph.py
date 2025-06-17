@@ -29,12 +29,12 @@ class Problem(
         return str(self.data)
 
     def create_graph(self) -> nx.DiGraph:
-        """Create a directed graph from the problem data"""
         graph = nx.DiGraph()
         
         # Add nodes with attributes
         for label, node in self.nodes.items():
-            graph.add_node(label, u=(label in self.U))
+            graph.add_node(label, u=(label in self.U),
+                          is_depot=(label in self.depots)))
         
         # Add edges with attributes
         def add_edge_attributes(edge, data):
@@ -87,7 +87,14 @@ class Problem(
         pos = nx.spring_layout(graph, k=0.15, iterations=50)
         
         # Draw nodes
-        node_colors = ['red' if graph.nodes[n]['u'] else 'skyblue' for n in graph.nodes()]
+        node_colors = []
+        for n in graph.nodes():
+            if graph.nodes[n].get('is_depot', False):
+                node_colors.append('green')  # Depot nodes are green
+            elif graph.nodes[n]['u']:
+                node_colors.append('red')    # U-turn nodes are red
+            else:
+                node_colors.append('skyblue') # Regular nodes are blue
         nx.draw_networkx_nodes(graph, pos, node_color=node_colors, node_size=500)
         nx.draw_networkx_labels(graph, pos, font_size=14, font_weight='bold')
         
