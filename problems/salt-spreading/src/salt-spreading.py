@@ -1,0 +1,145 @@
+import json
+import logging
+import sys
+from dataclasses import dataclass
+from logging import getLogger
+from typing import Self, TextIO, final
+
+import jsonschema
+from roar_net_api.operations import (SupportsApplyMove,
+                                     SupportsConstructionNeighbourhood,
+                                     SupportsCopySolution,
+                                     SupportsEmptySolution,
+                                     SupportsLocalNeighbourhood,
+                                     SupportsLowerBound,
+                                     SupportsLowerBoundIncrement,
+                                     SupportsMoves, SupportsObjectiveValue,
+                                     SupportsObjectiveValueIncrement,
+                                     SupportsRandomMove,
+                                     SupportsRandomMovesWithoutReplacement,
+                                     SupportsRandomSolution)
+
+log = getLogger(__name__)
+
+# ---------------------------------- Problem --------------------------------
+@dataclass(
+    init=False,
+    repr=True,
+    eq=True,
+    order=False,
+    unsafe_hash=False,
+    frozen=True,
+    match_args=False,
+    kw_only=False,
+    slots=False,
+    weakref_slot=False,
+)
+class AttrDict:
+    def __init__(self, d: dict):
+        for k, v in d.items():
+            object.__setattr__(self, k, v)
+
+    def __str__(self) -> str:
+        return "\n".join(
+            f"{k}: {v}" for k, v in self.__dict__.items() if not k.startswith("_")
+        )
+
+@final
+class Problem(
+    # SupportsConstructionNeighbourhood[AddNeighbourhood],
+    # SupportsLocalNeighbourhood[TwoOptNeighbourhood],
+    # SupportsEmptySolution[Solution],
+    # SupportsRandomSolution[Solution],
+):
+    def __init__(self, d: dict):
+        self.data = AttrDict(d)
+
+        self.name = self.data.name
+        self.max_time = self.data.max_time
+        self.nodes = {n["label"]: n for n in self.data.nodes}
+        self.vehicles = {v["id"]: v for v in self.data.vehicles}
+        self.depots = {d["label"]: d for d in self.data.depots}
+        self.dwelling_nodes = {v["home"]: v for v in self.data.vehicles}
+        self.arcs = {tuple(a["arc"]): a for a in self.data.A}
+        self.arcs_required = {tuple(a["arc"]): a for a in self.data.A_R}
+        self.edges_required = {tuple(a["edge"]): a for a in self.data.E_R}
+        self.all_links = (
+            set(self.arcs.keys())
+            | set(self.arcs_required.keys())
+            | set(self.edges_required.keys())
+        )
+        self.all_links |= {(a[1], a[0]) for a in self.edges_required.keys()}
+        self.U = {n["label"]: n for n in self.data.U}
+
+    def __str__(self) -> str:
+        return str(self.data)
+
+    # def construction_neighbourhood(self) -> AddNeighbourhood:
+    #     if self.c_nbhood is None:
+    #         self.c_nbhood = AddNeighbourhood(self)
+    #     return self.c_nbhood
+
+    # def local_neighbourhood(self) -> TwoOptNeighbourhood:
+    #     if self.l_nbhood is None:
+    #         self.l_nbhood = TwoOptNeighbourhood(self)
+    #     return self.l_nbhood
+
+    @classmethod
+    def from_textio(cls, f: TextIO) -> Self:
+        """
+        Create a problem from a text I/O source `f`
+        """
+        data = json.load(f)
+        # Load JSON schema
+        with open("support/schema_instance.json", "r") as f:
+            schema = json.load(f)
+        try:
+            jsonschema.validate(instance=data, schema=schema)
+            log.info("JSON is valid")
+        except jsonschema.ValidationError as ve:
+            log.info(f"Validation error: {ve.message}")
+            sys.exit(0)
+        except jsonschema.SchemaError as se:
+            log.info(f"Schema error: {se.message}")
+            sys.exit(0)
+        return cls(data)  # , data.name)
+
+    # def empty_solution(self) -> Solution:
+    #     return Solution(self, [0], set(range(1, self.n)), 0)
+
+    # def random_solution(self) -> Solution:
+    #     c = list(range(1, self.n))
+    #     random.shuffle(c)
+    #     c.insert(0, 0)
+    #     obj = self.dist[c[-1]][c[0]]
+    #     for ix in range(1, self.n):
+    #         obj += self.dist[c[ix - 1]][c[ix]]
+    #     return Solution(self, c, set(), obj)
+
+
+if __name__ == "__main__":
+    import roar_net_api.algorithms as alg
+
+    logging.basicConfig(stream=sys.stderr, level="INFO", format="%(levelname)s;%(asctime)s;%(message)s")
+
+    log.info("Salt spreading problem")
+
+    problem = Problem.from_textio(sys.stdin)
+
+    log.info(problem)
+
+    # Run greedy construction to get an initial solution
+    solution = alg.greedy_construction(problem)
+    # # solution = alg.beam_search(problem, bw=10)
+    # # solution = alg.grasp(problem, 30.0)
+    log.info(f"Objective value after constructive search: {solution.objective_value()}")
+
+    # # Run simulated annealing to improve the previous solution
+    # solution = alg.sa(problem, solution, 10.0, 30.0)
+    # # solution = alg.rls(problem, solution, 10.0)
+    # # solution = alg.best_improvement(problem, solution)
+    # # solution = alg.first_improvement(problem, solution)
+    # log.info(f"Objective value after local search: {solution.objective_value()}")
+
+    # # Print the final solution to stdout
+    # solution.to_textio(sys.stdout)
