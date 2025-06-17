@@ -1,5 +1,6 @@
 import json
 import logging
+import random
 import sys
 from dataclasses import dataclass
 from logging import getLogger
@@ -65,6 +66,19 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
     @property
     def is_feasible(self) -> bool:
         pass
+
+    def split_by_depo_visits(self):
+        routes = {}
+        for vehicle in self.representation:
+            demanded_salt = 0
+            trip = []
+            for arc in self.representation[vehicle]:
+                if demanded_salt > self.problem.vehicles[vehicle]["capacity"]:
+                    routes[vehicle].append(trip)
+                    trip = []
+                demanded_salt += self.problem.arcs_required[arc]["demand"]
+                trip.append(arc)
+        return routes
 
     def to_textio(self, f: TextIO) -> None:
         print(self.__str__())
@@ -207,16 +221,25 @@ class Problem(
         return cls(data)  # , data.name)
 
     def empty_solution(self) -> Solution:
-        return Solution(self, {key: list() for key in self.nodes.keys()})
+        return Solution(self, {key: list() for key in self.vehicles.keys()})
 
-    # def random_solution(self) -> Solution:
-    #     c = list(range(1, self.n))
-    #     random.shuffle(c)
-    #     c.insert(0, 0)
-    #     obj = self.dist[c[-1]][c[0]]
-    #     for ix in range(1, self.n):
-    #         obj += self.dist[c[ix - 1]][c[ix]]
-    #     return Solution(self, c, set(), obj)
+    def random_solution(self) -> Solution:
+        result = self.empty_solution()
+        edges_to_salt = {
+            (key[0], key[1]) if random.random() < 0.5 else (key[1], key[0]): value
+            for key, value in self.edges_required.items()
+        }
+        to_salt = self.arcs_required | edges_to_salt
+
+        items = list(to_salt.items())
+        random.shuffle(items)
+        to_salt = dict(items)
+        for connection in to_salt:
+            result.representation[
+                random.choice(list(result.representation.keys()))
+            ].append(connection)
+
+        return result
 
 
 if __name__ == "__main__":
@@ -243,8 +266,9 @@ if __name__ == "__main__":
 
     # log.info(problem)
 
-    instance = problem.empty_solution()
-    print(f"Empty solution: {instance}")
+    instance = problem.random_solution()
+    print(f"Random solution: {instance}")
+    # print(f"Splitted solution: {instance.split_by_depo_visits()}")
 
     # Run greedy construction to get an initial solution
     # solution = alg.greedy_construction(problem)
