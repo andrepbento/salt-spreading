@@ -6,6 +6,8 @@ from logging import getLogger
 from typing import Self, TextIO, final
 
 import jsonschema
+import matplotlib.pyplot as plt
+import networkx
 from roar_net_api.operations import (SupportsApplyMove,
                                      SupportsConstructionNeighbourhood,
                                      SupportsCopySolution,
@@ -73,6 +75,28 @@ class Problem(
 
     def __str__(self) -> str:
         return str(self.data)
+    
+    def create_graph(self) -> networkx.DiGraph:
+        graph = networkx.DiGraph()
+        for node in self.nodes:
+            graph.add_node(node)
+
+        for arc in self.arcs:
+            # print("ARC", arc)
+            graph.add_edge(arc[0], arc[1])
+
+        for arc in self.arcs_required:
+            # print("ARC_REQUIRED", arc)
+            graph.add_edge(arc[0], arc[1])
+
+        for edge in self.edges_required:
+            # print("EDGE_REQUIRED", edge)
+            graph.add_edge(edge[0], edge[1])
+            graph.add_edge(edge[1], edge[0])
+        
+    def print_graph(self, graph: networkx.DiGraph) -> None:
+        networkx.draw(graph, with_labels=True)
+        plt.show()
 
     # def construction_neighbourhood(self) -> AddNeighbourhood:
     #     if self.c_nbhood is None:
@@ -126,7 +150,9 @@ if __name__ == "__main__":
 
     problem = Problem.from_textio(sys.stdin)
 
-    log.info(problem)
+    problem.create_graph()
+
+    # log.info(problem)
 
     # Run greedy construction to get an initial solution
     solution = alg.greedy_construction(problem)
