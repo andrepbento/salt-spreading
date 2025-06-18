@@ -114,6 +114,7 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
     def lower_bound(self) -> int:
         pass
 
+
 # ----------------------------------- Moves -----------------------------------
 
 
@@ -178,6 +179,7 @@ class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solu
         incr -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
         return incr
 
+
 # ------------------------------- Neighbourhood ------------------------------
 
 
@@ -204,6 +206,13 @@ class SwapNeighbourhood(
 
     def moves(self, solution: Solution) -> Iterable[SwapMove]:
         assert self.problem == solution.problem
+
+        for key1 in solution.representation.vehicle_plans.keys():
+            vehicle1 = solution.representation.vehicle_plans[key1]
+            vehicle1Connections = solution.representation.vehicle_plans[key1].connections
+            for connI in enumerate(vehicle1Connections):
+                # TODO: Finish this!! 
+
         n = self.problem.n
         # This is only meant to be used as a local neighbourhood, so solution should be feasible
         assert solution.is_feasible
@@ -212,42 +221,7 @@ class SwapNeighbourhood(
                 yield SwapMove(self, ix, jx)
 
     def random_moves_without_replacement(self, solution: Solution) -> Iterable[SwapMove]:
-        assert self.problem == solution.problem
-        n = self.problem.n
-        # This is only meant to be used as a local neighbourhood, so solution should be feasible
-        assert solution.is_feasible
-        # Sample integers at random and convert them into moves. To that
-        # end, start by mapping x = 0, 1, ..., onto pairs (a, b) as shown
-        # in the following table:
-        #
-        #    b  0   1   2   3   4   5
-        #  a +------------------------
-        #  0 |  -   -   -   -   -   -
-        #  1 |  0   -   -   -   -   -
-        #  2 |  1   2   -   -   -   -
-        #  3 |  3   4   5   -   -   -
-        #  4 |  6   7   8   9   -   -
-        #  5 | 10  11  12  13  14   -
-        #  6 | 15   …   …   …   …   …
-        #
-        # Note how x = a*(a-1)/2 + b.
-        # To solve for a given x, rewrite the expression as
-        # a**2 - a + 2*b - 2*x = 0, which has one positive root:
-        # a = (1 + sqrt(1 + 8*x - 8*b) / 2
-        # Taking a = floor((1 + sqrt(1 + 8*x)) / 2) and
-        # b = x - a*(a-1)/2 allows both the desired jx = a + 2 and
-        # ix = b + 1 to be obtained.
-        # Note: since pair (1, n) would not be a valid 2-opt move, it can
-        # be skipped or simply replaced by (n-2, n) when generated, which
-        # saves one iteration.
-        for x in sparse_fisher_yates_iter(n * (n - 3) // 2):
-            jx = (1 + math.isqrt(1 + 8 * x)) // 2
-            ix = x - jx * (jx - 1) // 2 + 1
-            jx += 2
-            # Handle special case
-            if ix == 1 and jx == n:
-                ix = n - 2
-            yield SwapMove(self, ix, jx)
+        raise NotImplementedError
 
     def random_move(self, solution: Solution) -> Optional[SwapMove]:
         return next(iter(self.random_moves_without_replacement(solution)), None)
@@ -287,7 +261,9 @@ class Problem(
             (node1["label"], node2["label"]): ShortestPath([], random.randint(0, 200)) for node1 in self.nodes.values() for node2 in self.nodes.values() if node1["label"] != node2["label"]
         }
 
-
+        self.c_nbhood: Optional[AddNeighbourhood] = None
+        self.l_nbhood: Optional[SwapNeighbourhood] = None
+    
     def __str__(self) -> str:
         return str(self.data)
 
@@ -381,9 +357,9 @@ class Problem(
             self.c_nbhood = AddNeighbourhood(self)
         return self.c_nbhood
 
-    def local_neighbourhood(self) -> TwoOptNeighbourhood:
+    def local_neighbourhood(self) -> SwapNeighbourhood:
         if self.l_nbhood is None:
-            self.l_nbhood = TwoOptNeighbourhood(self)
+            self.l_nbhood = SwapNeighbourhood(self)
         return self.l_nbhood
 
     @classmethod
