@@ -5,6 +5,7 @@ import sys
 from dataclasses import dataclass
 from logging import getLogger
 from typing import Optional, Protocol, Self, TextIO, TypeVar, final
+from representation import Connection, Plan
 
 import jsonschema
 import matplotlib.pyplot as plt
@@ -54,14 +55,12 @@ class AttrDict:
 
 @final
 class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound):
-    def __init__(self, problem, representation: dict):
+    def __init__(self, problem, representation: Plan):
         self.problem = problem
         self.representation = representation
 
-    def __str__(self) -> str:
-        return "\n".join(
-            f"{k}: {v}" for k, v in self.representation.items() if not k.startswith("_")
-        )
+    def __str__(self):
+        return f"Solution({self.representation})"
 
     def __repr__(self) -> str:
         return f"Solution({self.representation})"
@@ -69,19 +68,6 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
     @property
     def is_feasible(self) -> bool:
         pass
-
-    def split_by_depo_visits(self):
-        routes = {}
-        for vehicle in self.representation:
-            demanded_salt = 0
-            trip = []
-            for arc in self.representation[vehicle]:
-                if demanded_salt > self.problem.vehicles[vehicle]["capacity"]:
-                    routes[vehicle].append(trip)
-                    trip = []
-                demanded_salt += self.problem.arcs_required[arc]["demand"]
-                trip.append(arc)
-        return routes
 
     def to_textio(self, f: TextIO) -> None:
         print(self.__str__())
@@ -222,23 +208,23 @@ class Problem(
         return cls(data)  # , data.name)
 
     def empty_solution(self) -> Solution:
-        return Solution(self, {key: list() for key in self.vehicles.keys()})
+        return Solution(self, Plan(self.vehicles, self.depots))
 
     def random_solution(self) -> Solution:
         result = self.empty_solution()
-        edges_to_salt = {
-            (key[0], key[1]) if random.random() < 0.5 else (key[1], key[0]): value
-            for key, value in self.edges_required.items()
-        }
-        to_salt = self.arcs_required | edges_to_salt
+        connections_to_salt = []
 
-        items = list(to_salt.items())
-        random.shuffle(items)
-        to_salt = dict(items)
-        for connection in to_salt:
-            result.representation[
-                random.choice(list(result.representation.keys()))
-            ].append(connection)
+        for arc in self.arcs_required:
+            connections_to_salt.append(Connection(arc[0], arc[1], self.arcs_required[arc]["dem"], "arc"))
+        for edge in self.edges_required:
+            if random.random() < 0.5:
+                connections_to_salt.append(Connection(edge[0], edge[1], self.edges_required[edge]["dem"], "edge"))
+            else:
+                connections_to_salt.append(Connection(edge[1], edge[0], self.edges_required[edge]["dem"], "edge"))
+        random.shuffle(connections_to_salt)
+        for connection in connections_to_salt:
+            random_vehicle = random.choice(list(result.representation.vehicle_plans.keys()))
+            result.representation.vehicle_plans[random_vehicle].append_connection(connection)
 
         return result
 
@@ -270,9 +256,12 @@ if __name__ == "__main__":
 
     # log.info(problem)
 
+    instance = problem.empty_solution()
+    print(f"Empty solution: {instance}")
+
     instance = problem.random_solution()
     print(f"Random solution: {instance}")
-    # print(f"Splitted solution: {instance.split_by_depo_visits()}")
+    print(f"Route of a random solution: {instance.representation.vehicle_plans['1']._construct_route()}")
 
     # Run greedy construction to get an initial solution
     # solution = alg.greedy_construction(problem)
