@@ -9,18 +9,21 @@ from typing import Optional, Protocol, Self, TextIO, TypeVar, final
 import jsonschema
 import matplotlib.pyplot as plt
 import networkx
-from roar_net_api.operations import (SupportsApplyMove,
-                                     SupportsConstructionNeighbourhood,
-                                     SupportsCopySolution,
-                                     SupportsEmptySolution,
-                                     SupportsLocalNeighbourhood,
-                                     SupportsLowerBound,
-                                     SupportsLowerBoundIncrement,
-                                     SupportsMoves, SupportsObjectiveValue,
-                                     SupportsObjectiveValueIncrement,
-                                     SupportsRandomMove,
-                                     SupportsRandomMovesWithoutReplacement,
-                                     SupportsRandomSolution)
+from roar_net_api.operations import (
+    SupportsApplyMove,
+    SupportsConstructionNeighbourhood,
+    SupportsCopySolution,
+    SupportsEmptySolution,
+    SupportsLocalNeighbourhood,
+    SupportsLowerBound,
+    SupportsLowerBoundIncrement,
+    SupportsMoves,
+    SupportsObjectiveValue,
+    SupportsObjectiveValueIncrement,
+    SupportsRandomMove,
+    SupportsRandomMovesWithoutReplacement,
+    SupportsRandomSolution,
+)
 
 log = getLogger(__name__)
 
@@ -120,7 +123,6 @@ class Problem(
         self.all_links |= {(a[1], a[0]) for a in self.edges_required.keys()}
         self.U = {n["label"]: n for n in self.data.U}
 
-
     def __str__(self) -> str:
         return str(self.data)
 
@@ -128,9 +130,9 @@ class Problem(
         graph = networkx.DiGraph()
         for node in self.nodes:
             if node in self.U:
-                graph.add_node(node, u = True)
+                graph.add_node(node, u=True)
             else:
-                graph.add_node(node, u = False)
+                graph.add_node(node, u=False)
 
         # print("ITEMS:", self.arcs.items())
         for item in self.arcs.items():
@@ -251,7 +253,11 @@ if __name__ == "__main__":
 
     log.info("Salt spreading problem")
 
-    problem = Problem.from_textio(sys.stdin)
+    if len(sys.argv) < 2:
+        problem = Problem.from_textio(sys.stdin)
+    else:
+        with open(sys.argv[1], "r") as f:
+            problem = Problem.from_textio(f)
 
     original_graph = problem.create_graph()
     for item_edge in original_graph.edges.items():
