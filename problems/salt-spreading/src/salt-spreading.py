@@ -134,7 +134,6 @@ class Problem(
             graph.add_edge(arc[0], arc[1], time=time, lenght=lenght)
 
         for item in self.arcs_required.items():
-            # print("ARC_REQUIRED", arc)
             arc = item[0]
             time = item[1]["time"]
             lenght = item[1]["len"]
@@ -142,7 +141,6 @@ class Problem(
             graph.add_edge(arc[0], arc[1], time=time, lenght=lenght, dem=dem)
 
         for item in self.edges_required.items():
-            # print("EDGE_REQUIRED", edge)
             arc = item[0]
             time = item[1]["time"]
             lenght = item[1]["len"]
@@ -167,15 +165,30 @@ class Problem(
                 out_edges = graph.out_edges(exit_node)
                 # print("OUT_EDGES", out_edges)
                 for out_edge in out_edges:
-                    dual_graph.add_edge(node, out_edge)
+                    # print("OUT_EDGE", out_edge)
+                    edge = graph.edges[out_edge]
+                    # print("EDGE", edge)
+                    dual_graph.add_edge(node, out_edge, length=edge["lenght"])
             else:
                 out_edges = graph.out_edges(exit_node)
                 # print("OUT_EDGES", out_edges)
                 for out_edge in out_edges:
                     permuted_node = (out_edge[1], out_edge[0])
                     if node != permuted_node:
-                        dual_graph.add_edge(node, out_edge)
+                        edge = graph.edges[out_edge]
+                        # edge[1]["lenght"]
+                        dual_graph.add_edge(node, out_edge, length=edge["lenght"])
 
+        for node in graph.nodes:
+            dual_graph.add_node((None, None))
+            for dNode in dual_graph.nodes:
+                # print("dNode", dNode)
+                if node == dNode[0]:
+                    edge = graph.edges[dNode]
+                    dual_graph.add_edge((None, None), dNode, lenght=edge["lenght"]) # TODO: Add edges from dummy node for each "home" node "dummy"
+            return_of_dijkstra = networkx.single_source_dijkstra(dual_graph, (None, None), weight="lenght")
+            break
+        
         return dual_graph
 
     def print_graph(self, graph: networkx.DiGraph) -> None:
@@ -250,11 +263,11 @@ if __name__ == "__main__":
             problem = Problem.from_textio(f)
 
     original_graph = problem.create_graph()
-    for item_edge in original_graph.edges.items():
-        print("iEdge", item_edge)
+    # for item_edge in original_graph.edges.items():
+    #     print("iEdge", item_edge)
 
     dual_graph = problem.create_dual_graph(original_graph)
-    for edge in dual_graph.edges:
+    for edge in dual_graph.edges.items():
         print("edge", edge)
 
     # problem.print_graph(dual_graph)
