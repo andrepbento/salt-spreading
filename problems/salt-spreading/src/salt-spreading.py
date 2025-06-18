@@ -5,7 +5,7 @@ import sys
 from dataclasses import dataclass
 from logging import getLogger
 from typing import Optional, Protocol, Self, TextIO, TypeVar, final
-from representation import Connection, Plan
+from representation import Connection, Plan, ShortestPath
 
 import jsonschema
 import matplotlib.pyplot as plt
@@ -108,6 +108,11 @@ class Problem(
         )
         self.all_links |= {(a[1], a[0]) for a in self.edges_required.keys()}
         self.U = {n["label"]: n for n in self.data.U}
+
+        self.distances = {
+            (node1["label"], node2["label"]): ShortestPath([], random.randint(0, 200)) for node1 in self.nodes.values() for node2 in self.nodes.values() if node1["label"] != node2["label"]
+        }
+
 
     def __str__(self) -> str:
         return str(self.data)
@@ -261,7 +266,7 @@ if __name__ == "__main__":
 
     instance = problem.random_solution()
     print(f"Random solution: {instance}")
-    print(f"Route of a random solution: {instance.representation.vehicle_plans['1']._construct_route()}")
+    print(f"Route of a random solution: {instance.representation.vehicle_plans['1'].construct_route()}")
 
     # Run greedy construction to get an initial solution
     # solution = alg.greedy_construction(problem)

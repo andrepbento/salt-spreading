@@ -27,8 +27,6 @@ class VehiclePlan:
         self.vehicle_home = vehicle_home
         self.depots = depots
 
-        self._route = self._construct_route()
-
     def select_depot(self, from_node, to_node):
         random_depot = random.choice(list(self.depots.values()))
         return random_depot["label"]
@@ -36,7 +34,7 @@ class VehiclePlan:
     def append_connection(self, connection):
         self.connections.append(connection)
 
-    def _construct_route(self):
+    def construct_route(self):
         if not self.connections:
             return []
         demanded_salt = 0
@@ -102,3 +100,9 @@ class Plan:
 
     def __repr__(self):
         return self.__str__()
+
+
+class ShortestPath:
+    def __init__(self, paths, distance):
+        self.paths = paths
+        self.distance = distance
