@@ -169,10 +169,9 @@ class Problem(
             dual_graph.add_node(edge)
 
         for node in dual_graph.nodes:
-            print("NODE", node)
+            # print("NODE", node)
             exit_node = node[1]
-            # print("EXIT_NODE", exit_node
-            print("NODE[EXIT_NODE]", graph.nodes[exit_node])
+            # print("NODE[EXIT_NODE]", graph.nodes[exit_node])
             if graph.nodes[exit_node]["u"]:
                 out_edges = graph.out_edges(exit_node)
                 # print("OUT_EDGES", out_edges)
@@ -264,7 +263,6 @@ if __name__ == "__main__":
         print("iEdge", item_edge)
 
     dual_graph = problem.create_dual_graph(original_graph)
-
     for edge in dual_graph.edges:
         print("edge", edge)
 
