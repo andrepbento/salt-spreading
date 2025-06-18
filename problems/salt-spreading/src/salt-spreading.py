@@ -10,6 +10,9 @@ from representation import Connection, Plan, ShortestPath
 import jsonschema
 import matplotlib.pyplot as plt
 import networkx
+import itertools
+import copy
+
 from roar_net_api.operations import (
     SupportsApplyMove,
     SupportsConstructionNeighbourhood,
@@ -67,7 +70,26 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
 
     @property
     def is_feasible(self) -> bool:
-        pass
+        # check if all needed connections are traversed
+        all_connections = [vehicle_plan.connections for vehicle_plan in self.representation.vehicle_plans.values()]
+        all_connections = list(itertools.chain.from_iterable(all_connections))
+        reversed_edges = []
+        for connection in all_connections:
+            if connection.type == "edge":
+                reversed = copy.copy(connection)
+                reversed.from_node, reversed.to_node = connection.to_node, connection.from_node
+                reversed_edges.append(reversed)
+        all_connections.extend(reversed_edges)
+        traversed_connections = [(connection.from_node, connection.to_node) for connection in all_connections]
+
+        for arc in self.problem.arcs_required:
+            if arc not in traversed_connections:
+                return False
+        for edge in self.problem.edges_required:
+            if edge not in traversed_connections:
+                return False
+
+        return True
 
     def to_textio(self, f: TextIO) -> None:
         print(self.__str__())
@@ -76,18 +98,63 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
         pass
 
     def objective_value(self) -> Optional[int]:
-        pass
+        return self.representation.evaluate()
 
     def lower_bound(self) -> int:
         pass
 
 
+# @final
+# class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]):
+#     def __init__(self, neighbourhood: AddNeighbourhood, i: int, j: int):
+#         self.neighbourhood = neighbourhood
+#         # i and j are cities
+#         self.i = i
+#         self.j = j
+#
+#     def apply_move(self, solution: Solution) -> Solution:
+#         assert solution.tour[-1] == self.i
+#         prob = solution.problem
+#         # Update lower bound
+#         solution.lb += prob.dist[self.i][self.j]
+#         if len(solution.not_visited) == 1:
+#             solution.lb += prob.dist[self.j][solution.tour[0]]
+#         # Tighter, but *not* better!
+#         # solution.lb += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
+#         # Update solution
+#         solution.tour.append(self.j)
+#         solution.not_visited.remove(self.j)
+#         return solution
+#
+#     def lower_bound_increment(self, solution: Solution) -> float:
+#         assert solution.tour[-1] == self.i
+#         prob = solution.problem
+#         incr = prob.dist[self.i][self.j]
+#         if len(solution.not_visited) == 1:
+#             incr += prob.dist[self.j][solution.tour[0]]
+#         # Tighter, but *not* better!
+#         # incr += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
+#         return incr
+#
+#
+# @final
+# class AddNeighbourhood(SupportsMoves[Solution, AddMove]):
+#     def __init__(self, problem: Problem):
+#         self.problem = problem
+#
+#     def moves(self, solution: Solution) -> Iterable[AddMove]:
+#         assert self.problem == solution.problem
+#         i = solution.tour[-1]
+#         for j in solution.not_visited:
+#             yield AddMove(self, i, j)
+
+
 @final
 class Problem(
-    # SupportsConstructionNeighbourhood[AddNeighbourhood],
+    #SupportsConstructionNeighbourhood[AddNeighbourhood],
     # SupportsLocalNeighbourhood[TwoOptNeighbourhood],
-    # SupportsEmptySolution[Solution],
-    # SupportsRandomSolution[Solution],
+    #SupportsEmptySolution[Solution],
+    #SupportsRandomSolution[Solution],
 ):
     def __init__(self, d: dict):
         self.data = AttrDict(d)
@@ -233,7 +300,7 @@ class Problem(
         return cls(data)  # , data.name)
 
     def empty_solution(self) -> Solution:
-        return Solution(self, Plan(self.vehicles, self.depots))
+        return Solution(self, Plan(self.vehicles, self.depots, self))
 
     def random_solution(self) -> Solution:
         result = self.empty_solution()
@@ -289,7 +356,8 @@ if __name__ == "__main__":
     instance = problem.random_solution()
     print(f"Random solution: {instance}")
     print(f"Route of a random solution: {instance.representation.vehicle_plans['1'].construct_route()}")
-
+    print(f"Is feasible: {instance.is_feasible}")
+    print(f"Objective: {instance.objective_value()} m")
     # Run greedy construction to get an initial solution
     # solution = alg.greedy_construction(problem)
     # # solution = alg.beam_search(problem, bw=10)

@@ -20,12 +20,13 @@ class Connection:
 
 
 class VehiclePlan:
-    def __init__(self, vehicle_id, vehicle_capacity, vehicle_home, depots, connections=None):
+    def __init__(self, vehicle_id, vehicle_capacity, vehicle_home, depots, problem, connections=None):
         self.vehicle_id = vehicle_id
         self.vehicle_capacity = vehicle_capacity
         self.connections = connections if connections is not None else []
         self.vehicle_home = vehicle_home
         self.depots = depots
+        self.problem = problem
 
     def select_depot(self, from_node, to_node):
         random_depot = random.choice(list(self.depots.values()))
@@ -65,10 +66,14 @@ class VehiclePlan:
         return route
 
     def is_feasible(self):
-        pass
+        return True
 
     def evaluate(self):
-        pass
+        route = self.construct_route()
+        total_distance = 0
+        for connection in route:
+            total_distance += self.problem.distances[(connection.from_node, connection.to_node)].distance
+        return total_distance
 
     def move1(self):
         pass
@@ -84,10 +89,11 @@ class VehiclePlan:
 
 
 class Plan:
-    def __init__(self, vehicles, depots):
+    def __init__(self, vehicles, depots, problem):
         self.depots = depots
+        self.problem = problem
         self.vehicle_plans = {vehicle["id"]: VehiclePlan(vehicle["id"], vehicle["capacity"],
-                                                              vehicle["home"], self.depots) for vehicle in vehicles.values()}
+                                                              vehicle["home"], self.depots, problem) for vehicle in vehicles.values()}
 
     def evaluate(self):
         return sum(vehicle_plan.evaluate() for vehicle_plan in self.vehicle_plans.values())
