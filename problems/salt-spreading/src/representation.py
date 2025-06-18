@@ -106,3 +106,9 @@ class ShortestPath:
     def __init__(self, paths, distance):
         self.paths = paths
         self.distance = distance
+
+    def __str__(self) -> str:
+        return f"ShortestPath(paths={self.paths},distance={self.distance})"
+    
+    def __repr__(self):
+        return self.__str__()
