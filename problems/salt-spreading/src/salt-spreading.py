@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import logging
 import random
 import sys
 from dataclasses import dataclass
 from logging import getLogger
-from typing import Optional, Protocol, Self, TextIO, TypeVar, final
+from typing import Iterable, Optional, Protocol, Self, TextIO, TypeVar, final
 from representation import Connection, Plan, ShortestPath
 
 import jsonschema
@@ -31,6 +33,12 @@ from roar_net_api.operations import (
 
 log = getLogger(__name__)
 
+class _SupportsLT(Protocol):
+    def __lt__(self, other: Self) -> bool: ...
+
+
+_T = TypeVar("_T", bound=_SupportsLT)
+
 
 # ---------------------------------- Problem --------------------------------
 @dataclass(
@@ -54,6 +62,9 @@ class AttrDict:
         return "\n".join(
             f"{k}: {v}" for k, v in self.__dict__.items() if not k.startswith("_")
         )
+
+
+# ---------------------------------- Solution --------------------------------
 
 
 @final
@@ -103,58 +114,154 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
     def lower_bound(self) -> int:
         pass
 
+# ----------------------------------- Moves -----------------------------------
 
-# @final
-# class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]):
-#     def __init__(self, neighbourhood: AddNeighbourhood, i: int, j: int):
-#         self.neighbourhood = neighbourhood
-#         # i and j are cities
-#         self.i = i
-#         self.j = j
-#
-#     def apply_move(self, solution: Solution) -> Solution:
-#         assert solution.tour[-1] == self.i
-#         prob = solution.problem
-#         # Update lower bound
-#         solution.lb += prob.dist[self.i][self.j]
-#         if len(solution.not_visited) == 1:
-#             solution.lb += prob.dist[self.j][solution.tour[0]]
-#         # Tighter, but *not* better!
-#         # solution.lb += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
-#         # Update solution
-#         solution.tour.append(self.j)
-#         solution.not_visited.remove(self.j)
-#         return solution
-#
-#     def lower_bound_increment(self, solution: Solution) -> float:
-#         assert solution.tour[-1] == self.i
-#         prob = solution.problem
-#         incr = prob.dist[self.i][self.j]
-#         if len(solution.not_visited) == 1:
-#             incr += prob.dist[self.j][solution.tour[0]]
-#         # Tighter, but *not* better!
-#         # incr += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
-#         return incr
-#
-#
-# @final
-# class AddNeighbourhood(SupportsMoves[Solution, AddMove]):
-#     def __init__(self, problem: Problem):
-#         self.problem = problem
-#
-#     def moves(self, solution: Solution) -> Iterable[AddMove]:
-#         assert self.problem == solution.problem
-#         i = solution.tour[-1]
-#         for j in solution.not_visited:
-#             yield AddMove(self, i, j)
+
+@final
+class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]):
+    def __init__(self, neighbourhood: AddNeighbourhood, i: int, j: int):
+        self.neighbourhood = neighbourhood
+        # i and j are cities
+        self.i = i
+        self.j = j
+
+    def apply_move(self, solution: Solution) -> Solution:
+        assert solution.tour[-1] == self.i
+        prob = solution.problem
+        # Update lower bound
+        solution.lb += prob.dist[self.i][self.j]
+        if len(solution.not_visited) == 1:
+            solution.lb += prob.dist[self.j][solution.tour[0]]
+        # Tighter, but *not* better!
+        # solution.lb += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
+        # Update solution
+        solution.tour.append(self.j)
+        solution.not_visited.remove(self.j)
+        return solution
+
+    def lower_bound_increment(self, solution: Solution) -> float:
+        assert solution.tour[-1] == self.i
+        prob = solution.problem
+        incr = prob.dist[self.i][self.j]
+        if len(solution.not_visited) == 1:
+            incr += prob.dist[self.j][solution.tour[0]]
+        # Tighter, but *not* better!
+        # incr += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
+        return incr
+
+
+@final
+class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
+    def __init__(self, neighbourhood: SwapNeighbourhood, ix: int, jx: int):
+        self.neighbourhood = neighbourhood
+        # ix and jx are indices
+        self.ix = ix
+        self.jx = jx
+
+    def apply_move(self, solution: Solution) -> Solution:
+        prob = solution.problem
+        n, ix, jx = prob.n, self.ix, self.jx
+        # Update tour length
+        t = solution.tour
+        solution.lb -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
+        solution.lb += prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
+        # Update solution
+        solution.tour[ix:jx] = solution.tour[ix:jx][::-1]
+        return solution
+
+    def objective_value_increment(self, solution: Solution) -> float:
+        prob = solution.problem
+        n, ix, jx = prob.n, self.ix, self.jx
+        # Tour length increment
+        t = solution.tour
+        incr = prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
+        incr -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
+        return incr
+
+# ------------------------------- Neighbourhood ------------------------------
+
+
+@final
+class AddNeighbourhood(SupportsMoves[Solution, AddMove]):
+    def __init__(self, problem: Problem):
+        self.problem = problem
+
+    def moves(self, solution: Solution) -> Iterable[AddMove]:
+        assert self.problem == solution.problem
+        i = solution.tour[-1]
+        for j in solution.not_visited:
+            yield AddMove(self, i, j)
+
+
+@final
+class SwapNeighbourhood(
+    SupportsMoves[Solution, SwapMove],
+    SupportsRandomMovesWithoutReplacement[Solution, SwapMove],
+    SupportsRandomMove[Solution, SwapMove],
+):
+    def __init__(self, problem: Problem):
+        self.problem = problem
+
+    def moves(self, solution: Solution) -> Iterable[SwapMove]:
+        assert self.problem == solution.problem
+        n = self.problem.n
+        # This is only meant to be used as a local neighbourhood, so solution should be feasible
+        assert solution.is_feasible
+        for ix in range(1, n - 1):
+            for jx in range(ix + 2, n + (ix != 1)):
+                yield SwapMove(self, ix, jx)
+
+    def random_moves_without_replacement(self, solution: Solution) -> Iterable[SwapMove]:
+        assert self.problem == solution.problem
+        n = self.problem.n
+        # This is only meant to be used as a local neighbourhood, so solution should be feasible
+        assert solution.is_feasible
+        # Sample integers at random and convert them into moves. To that
+        # end, start by mapping x = 0, 1, ..., onto pairs (a, b) as shown
+        # in the following table:
+        #
+        #    b  0   1   2   3   4   5
+        #  a +------------------------
+        #  0 |  -   -   -   -   -   -
+        #  1 |  0   -   -   -   -   -
+        #  2 |  1   2   -   -   -   -
+        #  3 |  3   4   5   -   -   -
+        #  4 |  6   7   8   9   -   -
+        #  5 | 10  11  12  13  14   -
+        #  6 | 15   …   …   …   …   …
+        #
+        # Note how x = a*(a-1)/2 + b.
+        # To solve for a given x, rewrite the expression as
+        # a**2 - a + 2*b - 2*x = 0, which has one positive root:
+        # a = (1 + sqrt(1 + 8*x - 8*b) / 2
+        # Taking a = floor((1 + sqrt(1 + 8*x)) / 2) and
+        # b = x - a*(a-1)/2 allows both the desired jx = a + 2 and
+        # ix = b + 1 to be obtained.
+        # Note: since pair (1, n) would not be a valid 2-opt move, it can
+        # be skipped or simply replaced by (n-2, n) when generated, which
+        # saves one iteration.
+        for x in sparse_fisher_yates_iter(n * (n - 3) // 2):
+            jx = (1 + math.isqrt(1 + 8 * x)) // 2
+            ix = x - jx * (jx - 1) // 2 + 1
+            jx += 2
+            # Handle special case
+            if ix == 1 and jx == n:
+                ix = n - 2
+            yield SwapMove(self, ix, jx)
+
+    def random_move(self, solution: Solution) -> Optional[SwapMove]:
+        return next(iter(self.random_moves_without_replacement(solution)), None)
+
+
+# ---------------------------------- Problem --------------------------------
 
 
 @final
 class Problem(
-    #SupportsConstructionNeighbourhood[AddNeighbourhood],
-    # SupportsLocalNeighbourhood[TwoOptNeighbourhood],
-    #SupportsEmptySolution[Solution],
-    #SupportsRandomSolution[Solution],
+    SupportsConstructionNeighbourhood[AddNeighbourhood],
+    SupportsLocalNeighbourhood[SwapNeighbourhood],
+    SupportsEmptySolution[Solution],
+    SupportsRandomSolution[Solution],
 ):
     def __init__(self, d: dict):
         self.data = AttrDict(d)
@@ -269,15 +376,15 @@ class Problem(
         networkx.draw(graph, with_labels=True)
         plt.show()
 
-    # def construction_neighbourhood(self) -> AddNeighbourhood:
-    #     if self.c_nbhood is None:
-    #         self.c_nbhood = AddNeighbourhood(self)
-    #     return self.c_nbhood
+    def construction_neighbourhood(self) -> AddNeighbourhood:
+        if self.c_nbhood is None:
+            self.c_nbhood = AddNeighbourhood(self)
+        return self.c_nbhood
 
-    # def local_neighbourhood(self) -> TwoOptNeighbourhood:
-    #     if self.l_nbhood is None:
-    #         self.l_nbhood = TwoOptNeighbourhood(self)
-    #     return self.l_nbhood
+    def local_neighbourhood(self) -> TwoOptNeighbourhood:
+        if self.l_nbhood is None:
+            self.l_nbhood = TwoOptNeighbourhood(self)
+        return self.l_nbhood
 
     @classmethod
     def from_textio(cls, f: TextIO) -> Self:
