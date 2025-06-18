@@ -178,7 +178,8 @@ class Problem(
                         edge = graph.edges[out_edge]
                         # edge[1]["lenght"]
                         dual_graph.add_edge(node, out_edge, length=edge["lenght"])
-
+        
+        self.distances = {}
         for node in graph.nodes:
             dual_graph.add_node((None, None))
             for dNode in dual_graph.nodes:
@@ -187,7 +188,13 @@ class Problem(
                     edge = graph.edges[dNode]
                     dual_graph.add_edge((None, None), dNode, lenght=edge["lenght"]) # TODO: Add edges from dummy node for each "home" node "dummy"
             return_of_dijkstra = networkx.single_source_dijkstra(dual_graph, (None, None), weight="lenght")
-            break
+            # print("RETURN_OF_DIJKSTRA", return_of_dijkstra)
+            for key in return_of_dijkstra[0].keys():
+                if key == (None, None):
+                    continue
+                self.distances[key] = ShortestPath(return_of_dijkstra[1][key][1:], return_of_dijkstra[0][key])
+            # print("DISTANCES", self.distances)
+            dual_graph.remove_node((None,None))
         
         return dual_graph
 
@@ -267,8 +274,10 @@ if __name__ == "__main__":
     #     print("iEdge", item_edge)
 
     dual_graph = problem.create_dual_graph(original_graph)
-    for edge in dual_graph.edges.items():
-        print("edge", edge)
+    # for edge in dual_graph.edges.items():
+    #     print("edge", edge)
+
+    print("DISTANCES", problem.distances)
 
     # problem.print_graph(dual_graph)
 
