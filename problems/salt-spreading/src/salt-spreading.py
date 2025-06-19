@@ -151,25 +151,26 @@ class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solu
         self.veh2Key = veh2Key
 
     def apply_move(self, solution: Solution) -> Solution:
-        hVar=self.veh1[self.iveh1]
-        self.veh1[self.iveh1]=self.veh2[self.iveh2]
-        self.veh2[self.veh2]=hVar
-        
+        veh1 = solution.representation.vehicle_plans[self.veh1Key]
+        veh2 = solution.representation.vehicle_plans[self.veh2Key]
+
+        hVar = veh1.connections[self.iveh1]
+        solution.representation.vehicle_plans[self.veh1Key].connections[self.iveh1] = veh2.connections[self.iveh2]
+        solution.representation.vehicle_plans[self.veh2Key].connections[self.iveh2] = hVar
+
         return solution
 
     def objective_value_increment(self, solution: Solution) -> float:
-        befSwap=self.veh1.evaluate()+self.veh2.evaluate()
+        solutionCopy = solution.copy_solution()
 
-        hVar=self.veh1[self.iveh1]
-        self.veh1[self.iveh1]=self.veh2[self.iveh2]
-        self.veh2[self.veh2]=hVar
-        
-        afterSwap=self.veh1.evaluate()+self.veh2.evaluate()
-        
-        self.veh2[self.veh2]=self.veh1[self.iveh1]
-        self.veh1[self.iveh1]=hVar
-        
-        return afterSwap-befSwap
+        # print("REP1", solution.representation)
+
+        solutionAfterMove = self.apply_move(solutionCopy)
+
+        # print("REP2", solutionAfterMove.representation)
+
+        # print("objective_value", befSwap - afterSwap)
+        return solutionAfterMove.evaluate() - solution.evaluate()
 
 
 # ------------------------------- Neighbourhood ------------------------------
