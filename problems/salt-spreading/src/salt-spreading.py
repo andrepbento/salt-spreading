@@ -109,13 +109,16 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
         print(self.__str__())
 
     def copy_solution(self) -> Self:
-        pass
+        return copy.deepcopy(self)
 
     def objective_value(self) -> Optional[int]:
         return self.representation.evaluate()
 
     def lower_bound(self) -> int:
         pass
+
+    def evaluate(self) -> float:
+        return self.representation.evaluate()
 
 
 # ----------------------------------- Moves -----------------------------------
