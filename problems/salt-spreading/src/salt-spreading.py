@@ -7,6 +7,7 @@ import logging
 import random
 import sys
 from dataclasses import dataclass
+from dis import pretty_flags
 from logging import getLogger
 from typing import Iterable, Optional, Protocol, Self, TextIO, TypeVar, final
 
@@ -134,19 +135,19 @@ class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]
 
     def lower_bound_increment(self, solution: Solution) -> float:
         new_salting = solution.problem.distances[(self.connection.from_node, self.connection.to_node)].distance
-        if not solution.representation.vehicle_plans[self.vehicle_id].route:
-            return new_salting
-        last_depot2home = solution.representation.vehicle_plans[self.vehicle_id].route[-1]
-        last_point2last_depot = solution.representation.vehicle_plans[self.vehicle_id].route[-2]
-        last_point = last_point2last_depot.from_node
-
-        last_point2depot = solution.problem.distances[(last_point, self.connection.from_node)].distance
-        new_salting2depot = solution.problem.distances[(self.connection.to_node, last_depot2home.from_node)].distance
-
-        # applied = copy.deepcopy(solution)
-        # applied.representation.vehicle_plans[self.vehicle_id].append_connection(self.connection)
-        # incr = applied.representation.evaluate() - solution.representation.evaluate()
-        return last_point2depot + new_salting + new_salting2depot
+        # if not solution.representation.vehicle_plans[self.vehicle_id].route:
+        #     return new_salting
+        # last_depot2home = solution.representation.vehicle_plans[self.vehicle_id].route[-1]
+        # last_point2last_depot = solution.representation.vehicle_plans[self.vehicle_id].route[-2]
+        # last_point = last_point2last_depot.from_node
+        #
+        # last_point2depot = solution.problem.distances[(last_point, self.connection.from_node)].distance
+        # new_salting2depot = solution.problem.distances[(self.connection.to_node, last_depot2home.from_node)].distance
+        #
+        # # applied = copy.deepcopy(solution)
+        # # applied.representation.vehicle_plans[self.vehicle_id].append_connection(self.connection)
+        # # incr = applied.representation.evaluate() - solution.representation.evaluate()
+        return new_salting
 
 
 @final
@@ -501,7 +502,11 @@ if __name__ == "__main__":
     # print(f"Objective: {instance.objective_value()} m")
     # Run greedy construction to get an initial solution
     solution = alg.greedy_construction(problem)
-    print(solution)
+    output = solution.representation.generate_output()
+    with open("output.json", "w") as f:
+        json.dump(output, f, indent=4)
+    print(f"Objective: {solution.objective_value()} m")
+
     # # solution = alg.beam_search(problem, bw=10)
     # # solution = alg.grasp(problem, 30.0)
     # log.info(f"Objective value after constructive search: {solution.objective_value()}")

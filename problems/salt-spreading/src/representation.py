@@ -1,3 +1,4 @@
+import json
 import random
 
 
@@ -74,9 +75,15 @@ class VehiclePlan:
     def evaluate(self):
         route = self.construct_route()
         total_distance = 0
-        for connection in route:
-            if connection.from_node != connection.to_node:
-                total_distance += self.problem.distances[(connection.from_node, connection.to_node)].distance
+
+        for i in range(len(route)):
+            current_connection = route[i]
+            total_distance += self.problem.distances[(current_connection.from_node, current_connection.to_node)].distance
+            try:
+                next_connection = route[i + 1]
+                total_distance += self.problem.distances[(current_connection.to_node, next_connection.from_node)].distance
+            except IndexError:
+                pass
         return total_distance
 
     def move1(self):
@@ -111,8 +118,43 @@ class Plan:
     def __repr__(self):
         return self.__str__()
 
+    def generate_output_route(self, from_node, to_node, salted):
+        result = []
+        for path in self.problem.distances[(from_node, to_node)].paths:
+            result.append({
+                "arc": (path[0], path[1]),
+                "salted": salted,
+            })
+
+        return result
+
     def generate_output(self):
-        pass
+        output = []
+        for vehicle_id, vehicle_plan in self.vehicle_plans.items():
+            output.append({})
+            route = []
+            for vehicle_plan in self.vehicle_plans.values():
+                for i in range(len(vehicle_plan.route)):
+                    transit = vehicle_plan.route[i]
+                    # TODO update the second transit also for i + 1
+                    if transit.type in ["arc", "edge"]:
+                        route.append({
+                            "arc": (transit.from_node, transit.to_node),
+                            "salted": True
+                        })
+                    else:
+                        route.extend(self.generate_output_route(transit.from_node, transit.to_node, False))
+                    try:
+                          next_transit = vehicle_plan.route[i + 1]
+                          route.extend(self.generate_output_route(transit.to_node, next_transit.from_node, False))
+                    except IndexError:
+                        pass
+                    
+            output[-1] = {
+                "vehicle": vehicle_id,
+                "route": route
+            }
+        return output
 
 class ShortestPath:
     def __init__(self, paths, distance,time=None):
