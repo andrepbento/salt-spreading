@@ -27,6 +27,7 @@ class VehiclePlan:
         self.vehicle_home = vehicle_home
         self.depots = depots
         self.problem = problem
+        self.route = self.construct_route()
 
     def select_depot(self, from_node, to_node):
         random_depot = random.choice(list(self.depots.values()))
@@ -34,6 +35,8 @@ class VehiclePlan:
 
     def append_connection(self, connection):
         self.connections.append(connection)
+        # recalculate the route after adding a new connection
+        self.route = self.construct_route()
 
     def construct_route(self):
         if not self.connections:
@@ -72,7 +75,8 @@ class VehiclePlan:
         route = self.construct_route()
         total_distance = 0
         for connection in route:
-            total_distance += self.problem.distances[(connection.from_node, connection.to_node)].distance
+            if connection.from_node != connection.to_node:
+                total_distance += self.problem.distances[(connection.from_node, connection.to_node)].distance
         return total_distance
 
     def move1(self):
@@ -107,6 +111,8 @@ class Plan:
     def __repr__(self):
         return self.__str__()
 
+    def generate_output(self):
+        pass
 
 class ShortestPath:
     def __init__(self, paths, distance,time=None):

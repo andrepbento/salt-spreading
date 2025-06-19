@@ -72,6 +72,11 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
     def __init__(self, problem, representation: Plan):
         self.problem = problem
         self.representation = representation
+        self.remaining_connections = []
+        for arc in self.problem.arcs_required.values():
+            self.remaining_connections.append(Connection(arc["arc"][0], arc["arc"][1], arc["dem"], "arc"))
+        for edge in self.problem.edges_required.values():
+            self.remaining_connections.append(Connection(edge["edge"][1], edge["edge"][0], edge["dem"], "edge"))
 
     def __str__(self):
         return f"Solution({self.representation})"
@@ -120,35 +125,31 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
 
 @final
 class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]):
-    def __init__(self, neighbourhood: AddNeighbourhood, i: int, j: int):
+    def __init__(self, neighbourhood: AddNeighbourhood, connection: Connection, vehicle_id: Optional[str] = None):
         self.neighbourhood = neighbourhood
-        # i and j are cities
-        self.i = i
-        self.j = j
+        self.connection = connection
+        self.vehicle_id = vehicle_id
 
     def apply_move(self, solution: Solution) -> Solution:
-        assert solution.tour[-1] == self.i
-        prob = solution.problem
-        # Update lower bound
-        solution.lb += prob.dist[self.i][self.j]
-        if len(solution.not_visited) == 1:
-            solution.lb += prob.dist[self.j][solution.tour[0]]
-        # Tighter, but *not* better!
-        # solution.lb += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
-        # Update solution
-        solution.tour.append(self.j)
-        solution.not_visited.remove(self.j)
+        solution.representation.vehicle_plans[self.vehicle_id].append_connection(self.connection)
+        solution.remaining_connections.remove(self.connection)
         return solution
 
     def lower_bound_increment(self, solution: Solution) -> float:
-        assert solution.tour[-1] == self.i
-        prob = solution.problem
-        incr = prob.dist[self.i][self.j]
-        if len(solution.not_visited) == 1:
-            incr += prob.dist[self.j][solution.tour[0]]
-        # Tighter, but *not* better!
-        # incr += prob.dist[self.j][solution.tour[0]] - prob.dist[self.i][solution.tour[0]]
-        return incr
+        new_salting = solution.problem.distances[(self.connection.from_node, self.connection.to_node)].distance
+        if not solution.representation.vehicle_plans[self.vehicle_id].route:
+            return new_salting
+        last_depot2home = solution.representation.vehicle_plans[self.vehicle_id].route[-1]
+        last_point2last_depot = solution.representation.vehicle_plans[self.vehicle_id].route[-2]
+        last_point = last_point2last_depot.from_node
+
+        last_point2depot = solution.problem.distances[(last_point, self.connection.from_node)].distance
+        new_salting2depot = solution.problem.distances[(self.connection.to_node, last_depot2home.from_node)].distance
+
+        # applied = copy.deepcopy(solution)
+        # applied.representation.vehicle_plans[self.vehicle_id].append_connection(self.connection)
+        # incr = applied.representation.evaluate() - solution.representation.evaluate()
+        return last_point2depot + new_salting + new_salting2depot
 
 
 @final
@@ -202,9 +203,9 @@ class AddNeighbourhood(SupportsMoves[Solution, AddMove]):
 
     def moves(self, solution: Solution) -> Iterable[AddMove]:
         assert self.problem == solution.problem
-        i = solution.tour[-1]
-        for j in solution.not_visited:
-            yield AddMove(self, i, j)
+        for connection in solution.remaining_connections:
+            for vehicle_id in solution.problem.vehicles.keys():
+                yield AddMove(self, connection, vehicle_id)
 
 
 @final
@@ -278,7 +279,8 @@ class Problem(
         self.U = {n["label"]: n for n in self.data.U}
 
         self.distances = {
-            (node1["label"], node2["label"]): ShortestPath([], random.randint(0, 200)) for node1 in self.nodes.values() for node2 in self.nodes.values() if node1["label"] != node2["label"]
+            (node1["label"], node2["label"]): ShortestPath([], random.randint(0, 200)) if node1["label"] != node2["label"] else ShortestPath([], 0)
+                for node1 in self.nodes.values() for node2 in self.nodes.values()
         }
 
         self.c_nbhood: Optional[AddNeighbourhood] = None
@@ -348,7 +350,6 @@ class Problem(
                         edge = graph.edges[out_edge]
                         # edge[1]["length"]
                         dual_graph.add_edge(node, out_edge, length=edge["length"])
-        
 
         #problem.print_graph(dual_graph)
         self.distances = {}
@@ -488,22 +489,23 @@ if __name__ == "__main__":
     # for edge in dual_graph.edges.items():
     #     print("edge", edge)
 
-    #print("DISTANCES", problem.distances)
+    # print("DISTANCES", problem.distances)
 
     # problem.print_graph(dual_graph)
 
     # log.info(problem)
 
-    instance = problem.empty_solution()
-    print(f"Empty solution: {instance}")
-
-    instance = problem.random_solution()
-    print(f"Random solution: {instance}")
-    print(f"Route of a random solution: {instance.representation.vehicle_plans['1'].construct_route()}")
-    print(f"Is feasible: {instance.is_feasible}")
-    print(f"Objective: {instance.objective_value()} m")
+    # instance = problem.empty_solution()
+    # print(f"Empty solution: {instance}")
+    #
+    # instance = problem.random_solution()
+    # print(f"Random solution: {instance}")
+    # print(f"Route of a random solution: {instance.representation.vehicle_plans['1'].construct_route()}")
+    # print(f"Is feasible: {instance.is_feasible}")
+    # print(f"Objective: {instance.objective_value()} m")
     # Run greedy construction to get an initial solution
-    # solution = alg.greedy_construction(problem)
+    solution = alg.greedy_construction(problem)
+    print(solution)
     # # solution = alg.beam_search(problem, bw=10)
     # # solution = alg.grasp(problem, 30.0)
     # log.info(f"Objective value after constructive search: {solution.objective_value()}")
