@@ -153,31 +153,43 @@ class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]
 
 @final
 class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
-    def __init__(self, neighbourhood: SwapNeighbourhood, ix: int, jx: int):
+    def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1:VehiclePlan, iveh2: int, veh2: VehiclePlan):
         self.neighbourhood = neighbourhood
         # ix and jx are indices
-        self.ix = ix
-        self.jx = jx
+        self.iveh1 = iveh1
+        self.iveh2 = iveh2
+        self.veh1=veh1
+        self.veh2=veh2
 
     def apply_move(self, solution: Solution) -> Solution:
-        prob = solution.problem
-        n, ix, jx = prob.n, self.ix, self.jx
-        # Update tour length
-        t = solution.tour
-        solution.lb -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
-        solution.lb += prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
-        # Update solution
-        solution.tour[ix:jx] = solution.tour[ix:jx][::-1]
+        #prob = solution.problem
+        # n, ix, jx = prob.n, self.ix, self.jx
+        # # Update tour length
+        # t = solution.tour
+        # solution.lb -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
+        # solution.lb += prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
+        # # Update solution
+        # solution.tour[ix:jx] = solution.tour[ix:jx][::-1]
         return solution
 
     def objective_value_increment(self, solution: Solution) -> float:
         prob = solution.problem
-        n, ix, jx = prob.n, self.ix, self.jx
-        # Tour length increment
-        t = solution.tour
-        incr = prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
-        incr -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
-        return incr
+
+        befSwap=self.veh1.evaluate()+self.veh2.evaluate()
+
+        hVar=self.veh1[self.iveh1]
+        self.veh1[self.iveh1]=self.veh2[self.iveh2]
+        self.veh2[self.veh2]=hVar
+        
+        afterSwap=self.veh1.evaluate()+self.veh2.evaluate()
+        # n, ix, jx = prob.n, self.ix, self.jx
+        # # Tour length increment
+        # t = solution.tour
+        # incr = prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
+        # incr -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
+
+        #return incr
+        return afterSwap-befSwap
 
 
 # ------------------------------- Neighbourhood ------------------------------
@@ -209,16 +221,24 @@ class SwapNeighbourhood(
 
         for key1 in solution.representation.vehicle_plans.keys():
             vehicle1 = solution.representation.vehicle_plans[key1]
-            vehicle1Connections = solution.representation.vehicle_plans[key1].connections
-            for connI in enumerate(vehicle1Connections):
+            vehicle1Connections = vehicle1.connections
+            for indexConnVeh1 in enumerate(vehicle1Connections):
+                for key2 in solution.representation.vehicle_plans.keys():
+                    if key1==key2:
+                        continue
+                    else:
+                        vehicle2 = solution.representation.vehicle_plans[key2]
+                        vehicle2Connections = vehicle2.connections
+                        for indexConnVeh2 in enumerate(vehicle2Connections):
+                            yield SwapMove(self, indexConnVeh1, vehicle1, indexConnVeh2, vehicle2)
                 # TODO: Finish this!! 
 
-        n = self.problem.n
-        # This is only meant to be used as a local neighbourhood, so solution should be feasible
-        assert solution.is_feasible
-        for ix in range(1, n - 1):
-            for jx in range(ix + 2, n + (ix != 1)):
-                yield SwapMove(self, ix, jx)
+        # n = self.problem.n
+        # # This is only meant to be used as a local neighbourhood, so solution should be feasible
+        # assert solution.is_feasible
+        # for ix in range(1, n - 1):
+        #     for jx in range(ix + 2, n + (ix != 1)):
+        #         yield SwapMove(self, ix, jx)
 
     def random_moves_without_replacement(self, solution: Solution) -> Iterable[SwapMove]:
         raise NotImplementedError
@@ -280,23 +300,23 @@ class Problem(
             # print("ITEM", item)
             arc = item[0]
             time = item[1]["time"]
-            lenght = item[1]["len"]
-            graph.add_edge(arc[0], arc[1], time=time, lenght=lenght)
+            length = item[1]["len"]
+            graph.add_edge(arc[0], arc[1], time=time, length=length)
 
         for item in self.arcs_required.items():
             arc = item[0]
             time = item[1]["time"]
-            lenght = item[1]["len"]
+            length = item[1]["len"]
             dem = item[1]["dem"]
-            graph.add_edge(arc[0], arc[1], time=time, lenght=lenght, dem=dem)
+            graph.add_edge(arc[0], arc[1], time=time, length=length, dem=dem)
 
         for item in self.edges_required.items():
             arc = item[0]
             time = item[1]["time"]
-            lenght = item[1]["len"]
+            length = item[1]["len"]
             dem = item[1]["dem"]
-            graph.add_edge(arc[0], arc[1], time=time, lenght=lenght, dem=dem)
-            graph.add_edge(arc[1], arc[0], time=time, lenght=lenght, dem=dem)
+            graph.add_edge(arc[0], arc[1], time=time, length=length, dem=dem)
+            graph.add_edge(arc[1], arc[0], time=time, length=length, dem=dem)
 
         return graph
 
@@ -318,7 +338,7 @@ class Problem(
                     # print("OUT_EDGE", out_edge)
                     edge = graph.edges[out_edge]
                     # print("EDGE", edge)
-                    dual_graph.add_edge(node, out_edge, length=edge["lenght"])
+                    dual_graph.add_edge(node, out_edge, length=edge["length"])
             else:
                 out_edges = graph.out_edges(exit_node)
                 # print("OUT_EDGES", out_edges)
@@ -326,9 +346,11 @@ class Problem(
                     permuted_node = (out_edge[1], out_edge[0])
                     if node != permuted_node:
                         edge = graph.edges[out_edge]
-                        # edge[1]["lenght"]
-                        dual_graph.add_edge(node, out_edge, length=edge["lenght"])
+                        # edge[1]["length"]
+                        dual_graph.add_edge(node, out_edge, length=edge["length"])
         
+
+        #problem.print_graph(dual_graph)
         self.distances = {}
         for node in graph.nodes:
             dual_graph.add_node((None, None))
@@ -336,16 +358,55 @@ class Problem(
                 # print("dNode", dNode)
                 if node == dNode[0]:
                     edge = graph.edges[dNode]
-                    dual_graph.add_edge((None, None), dNode, lenght=edge["lenght"]) # TODO: Add edges from dummy node for each "home" node "dummy"
-            return_of_dijkstra = networkx.single_source_dijkstra(dual_graph, (None, None), weight="lenght")
-            # print("RETURN_OF_DIJKSTRA", return_of_dijkstra)
-            for key in return_of_dijkstra[0].keys():
-                if key == (None, None):
-                    continue
-                self.distances[key] = ShortestPath(return_of_dijkstra[1][key][1:], return_of_dijkstra[0][key])
-            # print("DISTANCES", self.distances)
+                    dual_graph.add_edge((None, None), dNode, length=edge["length"]) # TODO: Add edges from dummy node for each "home" node "dummy"
+            return_of_dijkstra = networkx.single_source_dijkstra(dual_graph, (None, None), weight="length")
+            
+            for endNode in graph.nodes:
+                newKey=(node,endNode)
+                if node==endNode:
+                    self.distances[newKey] = ShortestPath([], 0, 0)
+                else:
+                    bestKey=None
+                    bestValue=float("inf")
+                    #listRes=[]
+                    for key in return_of_dijkstra[0].keys():
+                        if key == (None, None) or key[1]!=endNode:
+                            continue
+                        #listRes.append({"k":key,"v":return_of_dijkstra[0][key],"p":return_of_dijkstra[1][key]})
+                        if return_of_dijkstra[0][key]<bestValue:
+                            bestValue=return_of_dijkstra[0][key]
+                            bestKey=key
+                    #print("LIST",listRes)
+                    
+                    time=0
+                    for newEdge in return_of_dijkstra[1][bestKey][1:]:
+                        time+=graph[newEdge[0]][newEdge[1]]['time']
+
+                    self.distances[newKey] = ShortestPath(return_of_dijkstra[1][bestKey][1:], return_of_dijkstra[0][bestKey], time)
             dual_graph.remove_node((None,None))
+        #print("DISTANCES", self.distances)
+        #print(len(self.distances))
+        # check=0
+        # check2=0
+        # check3=0
+        # l=[('0', '1'), ('1', '3'), ('3', '2'), ('2', '1')]
+        # for t in l:
+        #     print(t)
+        #     check+=self.distances[t].distance
+        #     print(self.distances[t].distance)
+        #     check2+=graph[t[0]][t[1]]["length"]
+        #     print(graph[t[0]][t[1]]["length"])
+            
+            
+        #     print()
         
+        # for i in range(len(l)-1):
+        #     s1=l[i]
+        #     s2=l[i+1]
+        #     check3+=dual_graph[s1][s2]["length"]
+        # print(check3)
+
+        #print(self.distances[('3','2')])
         return dual_graph
 
     def print_graph(self, graph: networkx.DiGraph) -> None:
@@ -427,7 +488,7 @@ if __name__ == "__main__":
     # for edge in dual_graph.edges.items():
     #     print("edge", edge)
 
-    print("DISTANCES", problem.distances)
+    #print("DISTANCES", problem.distances)
 
     # problem.print_graph(dual_graph)
 

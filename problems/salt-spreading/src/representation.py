@@ -109,9 +109,10 @@ class Plan:
 
 
 class ShortestPath:
-    def __init__(self, paths, distance):
+    def __init__(self, paths, distance,time=None):
         self.paths = paths
         self.distance = distance
+        self.time=time
 
     def __str__(self) -> str:
         return f"ShortestPath(paths={self.paths},distance={self.distance})"
