@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import copy
+import itertools
 import json
 import logging
 import random
@@ -7,29 +9,24 @@ import sys
 from dataclasses import dataclass
 from logging import getLogger
 from typing import Iterable, Optional, Protocol, Self, TextIO, TypeVar, final
-from representation import Connection, Plan, ShortestPath
 
 import jsonschema
 import matplotlib.pyplot as plt
 import networkx
-import itertools
-import copy
+from roar_net_api.operations import (SupportsApplyMove,
+                                     SupportsConstructionNeighbourhood,
+                                     SupportsCopySolution,
+                                     SupportsEmptySolution,
+                                     SupportsLocalNeighbourhood,
+                                     SupportsLowerBound,
+                                     SupportsLowerBoundIncrement,
+                                     SupportsMoves, SupportsObjectiveValue,
+                                     SupportsObjectiveValueIncrement,
+                                     SupportsRandomMove,
+                                     SupportsRandomMovesWithoutReplacement,
+                                     SupportsRandomSolution)
 
-from roar_net_api.operations import (
-    SupportsApplyMove,
-    SupportsConstructionNeighbourhood,
-    SupportsCopySolution,
-    SupportsEmptySolution,
-    SupportsLocalNeighbourhood,
-    SupportsLowerBound,
-    SupportsLowerBoundIncrement,
-    SupportsMoves,
-    SupportsObjectiveValue,
-    SupportsObjectiveValueIncrement,
-    SupportsRandomMove,
-    SupportsRandomMovesWithoutReplacement,
-    SupportsRandomSolution,
-)
+from representation import Connection, Plan, ShortestPath, VehiclePlan
 
 log = getLogger(__name__)
 
@@ -154,7 +151,7 @@ class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]
 
 @final
 class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
-    def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1:VehiclePlan, iveh2: int, veh2: VehiclePlan):
+    def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1: VehiclePlan, iveh2: int, veh2: VehiclePlan):
         self.neighbourhood = neighbourhood
         # ix and jx are indices
         self.iveh1 = iveh1
@@ -163,19 +160,13 @@ class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solu
         self.veh2=veh2
 
     def apply_move(self, solution: Solution) -> Solution:
-        #prob = solution.problem
-        # n, ix, jx = prob.n, self.ix, self.jx
-        # # Update tour length
-        # t = solution.tour
-        # solution.lb -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
-        # solution.lb += prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
-        # # Update solution
-        # solution.tour[ix:jx] = solution.tour[ix:jx][::-1]
+        hVar=self.veh1[self.iveh1]
+        self.veh1[self.iveh1]=self.veh2[self.iveh2]
+        self.veh2[self.veh2]=hVar
+        
         return solution
 
     def objective_value_increment(self, solution: Solution) -> float:
-        prob = solution.problem
-
         befSwap=self.veh1.evaluate()+self.veh2.evaluate()
 
         hVar=self.veh1[self.iveh1]
@@ -183,13 +174,10 @@ class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solu
         self.veh2[self.veh2]=hVar
         
         afterSwap=self.veh1.evaluate()+self.veh2.evaluate()
-        # n, ix, jx = prob.n, self.ix, self.jx
-        # # Tour length increment
-        # t = solution.tour
-        # incr = prob.dist[t[ix - 1]][t[jx - 1]] + prob.dist[t[ix]][t[jx % n]]
-        # incr -= prob.dist[t[ix - 1]][t[ix]] + prob.dist[t[jx - 1]][t[jx % n]]
-
-        #return incr
+        
+        self.veh2[self.veh2]=self.veh1[self.iveh1]
+        self.veh1[self.iveh1]=hVar
+        
         return afterSwap-befSwap
 
 
@@ -323,6 +311,10 @@ class Problem(
         return graph
 
     def create_dual_graph(self, graph: networkx.DiGraph) -> networkx.DiGraph:
+        # TODO: probabily add the path to the bins...
+        if not networkx.is_strongly_connected(graph):
+            raise Exception("The graph is not strongly connected")
+
         dual_graph = networkx.DiGraph()
         for edge in graph.edges:
             # print("EDGE", edge)
@@ -370,9 +362,12 @@ class Problem(
                     bestKey=None
                     bestValue=float("inf")
                     #listRes=[]
+                    # print("---")
+                    # print("node", node, "endNode", endNode)
                     for key in return_of_dijkstra[0].keys():
                         if key == (None, None) or key[1]!=endNode:
                             continue
+                        # print("key", key)
                         #listRes.append({"k":key,"v":return_of_dijkstra[0][key],"p":return_of_dijkstra[1][key]})
                         if return_of_dijkstra[0][key]<bestValue:
                             bestValue=return_of_dijkstra[0][key]
@@ -380,6 +375,7 @@ class Problem(
                     #print("LIST",listRes)
                     
                     time=0
+                    # print("bestKey", bestKey)
                     for newEdge in return_of_dijkstra[1][bestKey][1:]:
                         time+=graph[newEdge[0]][newEdge[1]]['time']
 
