@@ -142,13 +142,13 @@ class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]
 
 @final
 class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
-    def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1: VehiclePlan, iveh2: int, veh2: VehiclePlan):
+    def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1Key: str, iveh2: int, veh2Key: str):
         self.neighbourhood = neighbourhood
         # ix and jx are indices
         self.iveh1 = iveh1
         self.iveh2 = iveh2
-        self.veh1=veh1
-        self.veh2=veh2
+        self.veh1Key = veh1Key
+        self.veh2Key = veh2Key
 
     def apply_move(self, solution: Solution) -> Solution:
         hVar=self.veh1[self.iveh1]
@@ -492,11 +492,11 @@ if __name__ == "__main__":
     # print(f"Objective: {instance.objective_value()} m")
     # Run greedy construction to get an initial solution
     solution = alg.greedy_construction(problem)
+    print("GREEDY_CONSTRUCTION_SOLUTION", solution)
     output = solution.representation.generate_output()
     with open("output.json", "w") as f:
         json.dump(output, f, indent=4)
     print(f"Objective: {solution.objective_value()} m")
-
     # # solution = alg.beam_search(problem, bw=10)
     # # solution = alg.grasp(problem, 30.0)
     # log.info(f"Objective value after constructive search: {solution.objective_value()}")
@@ -504,7 +504,8 @@ if __name__ == "__main__":
     # # Run simulated annealing to improve the previous solution
     # solution = alg.sa(problem, solution, 10.0, 30.0)
     # # solution = alg.rls(problem, solution, 10.0)
-    # # solution = alg.best_improvement(problem, solution)
+    solution = alg.best_improvement(problem, solution)
+    print("BEST_IMPROVEMENT_SOLUTION", solution)
     # # solution = alg.first_improvement(problem, solution)
     # log.info(f"Objective value after local search: {solution.objective_value()}")
 
