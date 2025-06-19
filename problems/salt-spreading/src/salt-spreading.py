@@ -202,16 +202,15 @@ class SwapNeighbourhood(
         for key1 in solution.representation.vehicle_plans.keys():
             vehicle1 = solution.representation.vehicle_plans[key1]
             vehicle1Connections = vehicle1.connections
-            for indexConnVeh1 in enumerate(vehicle1Connections):
+            for i1, _ in enumerate(vehicle1Connections):
                 for key2 in solution.representation.vehicle_plans.keys():
                     if key1==key2:
                         continue
                     else:
                         vehicle2 = solution.representation.vehicle_plans[key2]
                         vehicle2Connections = vehicle2.connections
-                        for indexConnVeh2 in enumerate(vehicle2Connections):
-                            yield SwapMove(self, indexConnVeh1, vehicle1, indexConnVeh2, vehicle2)
-                # TODO: Finish this!! 
+                        for i2, _ in enumerate(vehicle2Connections):
+                            yield SwapMove(self, i1, key1, i2, key2)
 
         # n = self.problem.n
         # # This is only meant to be used as a local neighbourhood, so solution should be feasible
