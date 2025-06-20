@@ -490,6 +490,9 @@ class Problem(
     def create_dual_graph(self, graph: networkx.DiGraph) -> networkx.DiGraph:
         # TODO: probabily add the path to the bins...
         if not networkx.is_strongly_connected(graph):
+            print("NUM_STRONG_CON_COMPS", networkx.number_strongly_connected_components(graph))
+            for i, comp in enumerate(networkx.strongly_connected_components(graph)):
+                print(f"Component {i}: {comp}")
             raise Exception("The graph is not strongly connected")
 
         dual_graph = networkx.DiGraph()
