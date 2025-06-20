@@ -674,18 +674,18 @@ if __name__ == "__main__":
     # instance = problem.empty_solution()
     # print(f"Empty solution: {instance}")
     #
-    # instance = problem.random_solution()
-    # print(f"Random solution: {instance}")
+    instance = problem.random_solution()
+    print(f"RAND_SOL_OBJ_VAL: {instance.objective_value()}")
     # print(f"Route of a random solution: {instance.representation.vehicle_plans['1'].construct_route()}")
     # print(f"Is feasible: {instance.is_feasible}")
-    # print(f"Objective: {instance.objective_value()} m")
+    # print(f"Objective: {instance.objective_value()}")
     # Run greedy construction to get an initial solution
     solution = alg.greedy_construction(problem)
-    print("GREEDY_CONSTRUCTION_SOLUTION", solution)
-    output = solution.representation.generate_output()
-    with open("output.json", "w") as f:
-        json.dump(output, f, indent=4)
-    print(f"Objective: {solution.objective_value()} m")
+    # print("GREEDY_CONSTRUCTION_SOLUTION", solution)
+    # output = solution.representation.generate_output()
+    # with open("output.json", "w") as f:
+    #     json.dump(output, f, indent=4)
+    print(f"GR_SOL_OBJ_VAL: {solution.objective_value()}")
     # # solution = alg.beam_search(problem, bw=10)
     # # solution = alg.grasp(problem, 30.0)
     # log.info(f"Objective value after constructive search: {solution.objective_value()}")
@@ -694,10 +694,10 @@ if __name__ == "__main__":
     # solution = alg.sa(problem, solution, 10.0, 30.0)
     # # solution = alg.rls(problem, solution, 10.0)
     solution = alg.best_improvement(problem, solution)
-    print("BEST_IMPROVEMENT_SOLUTION", solution)
-    print("BEST_IMPROVEMENT_SOLUTION_EVAL", solution.evaluate())
-    # # solution = alg.first_improvement(problem, solution)
-    # log.info(f"Objective value after local search: {solution.objective_value()}")
+    print(f"BEST_IMP_OBJ_VAL: {solution.objective_value()}")
+
+    solution = alg.first_improvement(problem, solution)
+    print(f"FIRST_IMP_OBJ_VAL: {solution.objective_value()}")
 
     # # Print the final solution to stdout
     # solution.to_textio(sys.stdout)
