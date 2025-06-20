@@ -140,6 +140,103 @@ class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]
         return solution.problem.distances[(self.connection.from_node, self.connection.to_node)].distance
 
 
+# ------------------------------- Local search moves ------------------------------
+
+
+@final
+class RelocateMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
+    def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1Key: str, iveh2: int, veh2Key: str):
+        self.neighbourhood = neighbourhood
+        # ix and jx are indices
+        self.iveh1 = iveh1
+        self.iveh2 = iveh2
+        self.veh1Key = veh1Key
+        self.veh2Key = veh2Key
+        self.calledFromIncerement=False
+
+    def apply_move(self, solution: Solution) -> Solution:
+        if(self.calledFromIncerement==False):
+            print("IN APPLY BEFORE:",solution.evaluate())
+        
+        if self.veh1Key!=self.veh2Key or (self.veh1Key==self.veh2Key and self.iveh1>self.iveh2):
+            connToRelocate=solution.representation.vehicle_plans[self.veh1Key].connections.pop(self.iveh1)
+            solution.representation.vehicle_plans[self.veh2Key].connections.insert(self.iveh2,connToRelocate)
+        else:
+            connToRelocate=copy.copy(solution.representation.vehicle_plans[self.veh1Key].connections[self.iveh1])
+            solution.representation.vehicle_plans[self.veh2Key].connections.insert(self.iveh2,connToRelocate)
+            solution.representation.vehicle_plans[self.veh1Key].connections.pop(self.iveh1)
+            
+        if(self.calledFromIncerement==False):
+            print("IN APPLY After:",solution.evaluate())
+
+        self.calledFromIncerement=False
+        return solution
+
+    def objective_value_increment(self, solution: Solution) -> float:
+        solutionCopy = solution.copy_solution()
+
+        # print("REP1", solution.representation)
+        self.calledFromIncerement=True
+        solutionAfterMove = self.apply_move(solutionCopy)
+
+        # print("REP2", solutionAfterMove.representation)
+
+        #print("objective_value_diff", solutionAfterMove.evaluate() - solution.evaluate())
+        #return solutionAfterMove.evaluate() - solution.evaluate()
+
+        if solutionAfterMove.evaluate() - solution.evaluate()<0:            
+            print("IN INC BEFORE:",solution.evaluate())
+            print("IN INC AFTER:",solutionAfterMove.evaluate())
+            return solutionAfterMove.evaluate() - solution.evaluate()
+        else:
+            return 1000
+        
+
+@final
+class EdgeReverseMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
+    def __init__(self, neighbourhood: EdgeReverseNeighbourhood, i: int, vehKey: str):
+        self.neighbourhood = neighbourhood
+        # ix and jx are indices
+        self.i = i
+        self.vehKey = vehKey
+        self.calledFromIncerement=False
+
+    def apply_move(self, solution: Solution) -> Solution:
+        if(self.calledFromIncerement==False):
+            print("IN APPLY BEFORE:",solution.evaluate())
+            
+        
+        veh = solution.representation.vehicle_plans[self.vehKey]
+        connHelp = copy.copy(veh.connections[self.i])
+        #Revrsing it
+        connNew=Connection(connHelp.to_node,connHelp.from_node,connHelp.dem,connHelp.type)
+        solution.representation.vehicle_plans[self.vehKey].connections[self.i]=connNew
+        
+        if(self.calledFromIncerement==False):
+            print("IN APPLY After:",solution.evaluate())
+
+        self.calledFromIncerement=False
+        return solution
+
+    def objective_value_increment(self, solution: Solution) -> float:
+        solutionCopy = solution.copy_solution()
+
+        # print("REP1", solution.representation)
+        self.calledFromIncerement=True
+        solutionAfterMove = self.apply_move(solutionCopy)
+
+        # print("REP2", solutionAfterMove.representation)
+
+        #print("objective_value_diff", solutionAfterMove.evaluate() - solution.evaluate())
+        #return solutionAfterMove.evaluate() - solution.evaluate()
+
+        if solutionAfterMove.evaluate() - solution.evaluate()<0:            
+            print("IN INC BEFORE:",solution.evaluate())
+            print("IN INC AFTER:",solutionAfterMove.evaluate())
+            return solutionAfterMove.evaluate() - solution.evaluate()
+        else:
+            return 1000
+
 @final
 class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
     def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1Key: str, iveh2: int, veh2Key: str):
@@ -149,28 +246,43 @@ class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solu
         self.iveh2 = iveh2
         self.veh1Key = veh1Key
         self.veh2Key = veh2Key
+        self.calledFromIncerement=False
 
     def apply_move(self, solution: Solution) -> Solution:
+        if(self.calledFromIncerement==False):
+            print("IN APPLY BEFORE:",solution.evaluate())
+            
         veh1 = solution.representation.vehicle_plans[self.veh1Key]
         veh2 = solution.representation.vehicle_plans[self.veh2Key]
 
-        hVar = veh1.connections[self.iveh1]
+        hVar = copy.copy(veh1.connections[self.iveh1])
         solution.representation.vehicle_plans[self.veh1Key].connections[self.iveh1] = veh2.connections[self.iveh2]
         solution.representation.vehicle_plans[self.veh2Key].connections[self.iveh2] = hVar
 
+        if(self.calledFromIncerement==False):
+            print("IN APPLY After:",solution.evaluate())
+
+        self.calledFromIncerement=False
         return solution
 
     def objective_value_increment(self, solution: Solution) -> float:
         solutionCopy = solution.copy_solution()
 
         # print("REP1", solution.representation)
-
+        self.calledFromIncerement=True
         solutionAfterMove = self.apply_move(solutionCopy)
 
         # print("REP2", solutionAfterMove.representation)
 
-        # print("objective_value", befSwap - afterSwap)
-        return solutionAfterMove.evaluate() - solution.evaluate()
+        #print("objective_value_diff", solutionAfterMove.evaluate() - solution.evaluate())
+        #return solutionAfterMove.evaluate() - solution.evaluate()
+
+        if solutionAfterMove.evaluate() - solution.evaluate()<0:            
+            print("IN INC BEFORE:",solution.evaluate())
+            print("IN INC AFTER:",solutionAfterMove.evaluate())
+            return solutionAfterMove.evaluate() - solution.evaluate()
+        else:
+            return solutionAfterMove.evaluate() - solution.evaluate()
 
 
 # ------------------------------- Neighbourhood ------------------------------
@@ -205,13 +317,13 @@ class SwapNeighbourhood(
             vehicle1Connections = vehicle1.connections
             for i1, _ in enumerate(vehicle1Connections):
                 for key2 in solution.representation.vehicle_plans.keys():
-                    if key1==key2:
-                        continue
-                    else:
-                        vehicle2 = solution.representation.vehicle_plans[key2]
-                        vehicle2Connections = vehicle2.connections
-                        for i2, _ in enumerate(vehicle2Connections):
-                            yield SwapMove(self, i1, key1, i2, key2)
+                    # if key1==key2:
+                    #     continue
+                    # else:
+                    vehicle2 = solution.representation.vehicle_plans[key2]
+                    vehicle2Connections = vehicle2.connections
+                    for i2, _ in enumerate(vehicle2Connections):
+                        yield SwapMove(self, i1, key1, i2, key2)
 
         # n = self.problem.n
         # # This is only meant to be used as a local neighbourhood, so solution should be feasible
@@ -224,6 +336,76 @@ class SwapNeighbourhood(
         raise NotImplementedError
 
     def random_move(self, solution: Solution) -> Optional[SwapMove]:
+        return next(iter(self.random_moves_without_replacement(solution)), None)
+    
+
+@final
+class EdgeReverseNeighbourhood(
+    SupportsMoves[Solution, EdgeReverseMove],
+    SupportsRandomMovesWithoutReplacement[Solution, EdgeReverseMove],
+    SupportsRandomMove[Solution, EdgeReverseMove],
+):
+    def __init__(self, problem: Problem):
+        self.problem = problem
+
+    def moves(self, solution: Solution) -> Iterable[EdgeReverseMove]:
+        assert self.problem == solution.problem
+
+        for key in solution.representation.vehicle_plans.keys():
+            vehicle1 = solution.representation.vehicle_plans[key]
+            vehicle1Connections = vehicle1.connections
+            for i, _ in enumerate(vehicle1Connections):
+                conn=vehicle1Connections[i]
+                if(conn.type=="edge"):
+                    yield EdgeReverseMove(self, i, key)
+
+        # n = self.problem.n
+        # # This is only meant to be used as a local neighbourhood, so solution should be feasible
+        # assert solution.is_feasible
+        # for ix in range(1, n - 1):
+        #     for jx in range(ix + 2, n + (ix != 1)):
+        #         yield SwapMove(self, ix, jx)
+
+    def random_moves_without_replacement(self, solution: Solution) -> Iterable[EdgeReverseMove]:
+        raise NotImplementedError
+
+    def random_move(self, solution: Solution) -> Optional[EdgeReverseMove]:
+        return next(iter(self.random_moves_without_replacement(solution)), None)
+
+
+
+@final
+class RelocateMoveNeighbourhood(
+    SupportsMoves[Solution, RelocateMove],
+    SupportsRandomMovesWithoutReplacement[Solution, RelocateMove],
+    SupportsRandomMove[Solution, RelocateMove],
+):
+    def __init__(self, problem: Problem):
+        self.problem = problem
+
+    def moves(self, solution: Solution) -> Iterable[RelocateMove]:
+        assert self.problem == solution.problem
+
+        for key1 in solution.representation.vehicle_plans.keys():
+            vehicle1 = solution.representation.vehicle_plans[key1]
+            vehicle1Connections = vehicle1.connections
+            for i1, _ in enumerate(vehicle1Connections):
+                for key2 in solution.representation.vehicle_plans.keys():
+                    # if key1==key2:
+                    #     continue
+                    # else:
+                    vehicle2 = solution.representation.vehicle_plans[key2]
+                    vehicle2Connections = vehicle2.connections
+                    for i2, _ in enumerate(vehicle2Connections):
+                        if(key1==key2 and (i1==i2 or i1+1==i2)):
+                            continue
+                        else:    
+                            yield RelocateMove(self, i1, key1, i2, key2)
+        
+    def random_moves_without_replacement(self, solution: Solution) -> Iterable[RelocateMove]:
+        raise NotImplementedError
+
+    def random_move(self, solution: Solution) -> Optional[RelocateMove]:
         return next(iter(self.random_moves_without_replacement(solution)), None)
 
 
@@ -506,6 +688,7 @@ if __name__ == "__main__":
     # # solution = alg.rls(problem, solution, 10.0)
     solution = alg.best_improvement(problem, solution)
     print("BEST_IMPROVEMENT_SOLUTION", solution)
+    print("BEST_IMPROVEMENT_SOLUTION_EVAL", solution.evaluate())
     # # solution = alg.first_improvement(problem, solution)
     # log.info(f"Objective value after local search: {solution.objective_value()}")
 

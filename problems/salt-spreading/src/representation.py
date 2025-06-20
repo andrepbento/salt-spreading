@@ -29,10 +29,24 @@ class VehiclePlan:
         self.depots = depots
         self.problem = problem
         self.route = self.construct_route()
+    
+    def select_depot_not_random(self, from_node, to_node):
+        bestDepot=None
+        bestDistance=float('inf')
+        for depot in self.depots:
+            dist=self.problem.distances[(from_node,depot)].distance+self.problem.distances[(depot,to_node)].distance
+            if dist<bestDistance:
+                bestDistance=dist
+                bestDepot=depot
+        return bestDepot
 
-    def select_depot(self, from_node, to_node):
         random_depot = random.choice(list(self.depots.values()))
         return random_depot["label"]
+
+    def select_depot(self, from_node, to_node):
+        return self.select_depot_not_random(from_node,to_node)
+        # random_depot = random.choice(list(self.depots.values()))
+        # return random_depot["label"]
 
     def append_connection(self, connection):
         self.connections.append(connection)
