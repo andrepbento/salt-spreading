@@ -1,10 +1,19 @@
 [project]
 name = "salt-spreading"
 version = "0.1.0"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "jsonschema>=4.24.0",
     "matplotlib>=3.10.3",
     "networkx>=3.5",
     "roar-net-api>=0.1.0",
+]
+
+[tool.uv.sources]
+roar-net-api = { git = "ssh://git@github.com/roar-net/roar-net-api-py", branch = "training-school" }
+
+[dependency-groups]
+dev = [
+    "mypy>=1.16.1",
+    "ruff>=0.12.0",
 ]

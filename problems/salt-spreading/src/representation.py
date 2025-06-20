@@ -147,22 +147,21 @@ class Plan:
         for vehicle_id, vehicle_plan in self.vehicle_plans.items():
             output.append({})
             route = []
-            for vehicle_plan in self.vehicle_plans.values():
-                for i in range(len(vehicle_plan.route)):
-                    transit = vehicle_plan.route[i]
-                    # TODO update the second transit also for i + 1
-                    if transit.type in ["arc", "edge"]:
-                        route.append({
-                            "arc": (transit.from_node, transit.to_node),
-                            "salted": True
-                        })
-                    else:
-                        route.extend(self.generate_output_route(transit.from_node, transit.to_node, False))
-                    try:
-                          next_transit = vehicle_plan.route[i + 1]
-                          route.extend(self.generate_output_route(transit.to_node, next_transit.from_node, False))
-                    except IndexError:
-                        pass
+            for i in range(len(vehicle_plan.route)):
+                transit = vehicle_plan.route[i]
+                # TODO update the second transit also for i + 1
+                if transit.type in ["arc", "edge"]:
+                    route.append({
+                        "arc": (transit.from_node, transit.to_node),
+                        "salted": True
+                    })
+                else:
+                    route.extend(self.generate_output_route(transit.from_node, transit.to_node, False))
+                try:
+                      next_transit = vehicle_plan.route[i + 1]
+                      route.extend(self.generate_output_route(transit.to_node, next_transit.from_node, False))
+                except IndexError:
+                    pass
                     
             output[-1] = {
                 "vehicle": vehicle_id,
