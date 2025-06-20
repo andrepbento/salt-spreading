@@ -9,7 +9,7 @@ import sys
 from dataclasses import dataclass
 from dis import pretty_flags
 from logging import getLogger
-from typing import Iterable, Optional, Protocol, Self, TextIO, TypeVar, final
+from typing import Any, Iterable, Optional, Protocol, Self, TextIO, TypeVar, final
 
 import jsonschema
 import matplotlib.pyplot as plt
@@ -424,7 +424,7 @@ class Problem(
     SupportsRandomSolution[Solution],
 ):
     def __init__(self, d: dict):
-        self.data = AttrDict(d)
+        self.data: Any = AttrDict(d)
 
         self.name = self.data.name
         self.max_time = self.data.max_time
