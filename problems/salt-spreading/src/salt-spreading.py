@@ -334,7 +334,8 @@ class SwapNeighbourhood(
         #         yield SwapMove(self, ix, jx)
 
     def random_moves_without_replacement(self, solution: Solution) -> Iterable[SwapMove]:
-        raise NotImplementedError
+        # TODO: Improve this into a clever solution...
+        return self.moves(solution)
 
     def random_move(self, solution: Solution) -> Optional[SwapMove]:
         return next(iter(self.random_moves_without_replacement(solution)), None)
@@ -368,7 +369,8 @@ class EdgeReverseNeighbourhood(
         #         yield SwapMove(self, ix, jx)
 
     def random_moves_without_replacement(self, solution: Solution) -> Iterable[EdgeReverseMove]:
-        raise NotImplementedError
+        # TODO: Improve this into a clever solution...
+        return self.moves(solution)
 
     def random_move(self, solution: Solution) -> Optional[EdgeReverseMove]:
         return next(iter(self.random_moves_without_replacement(solution)), None)
@@ -404,7 +406,8 @@ class RelocateMoveNeighbourhood(
                             yield RelocateMove(self, i1, key1, i2, key2)
         
     def random_moves_without_replacement(self, solution: Solution) -> Iterable[RelocateMove]:
-        raise NotImplementedError
+        # TODO: Improve this into a clever solution...
+        return self.moves(solution)
 
     def random_move(self, solution: Solution) -> Optional[RelocateMove]:
         return next(iter(self.random_moves_without_replacement(solution)), None)
