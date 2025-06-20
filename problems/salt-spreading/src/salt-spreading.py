@@ -26,6 +26,7 @@ from roar_net_api.operations import (SupportsApplyMove,
                                      SupportsRandomMove,
                                      SupportsRandomMovesWithoutReplacement,
                                      SupportsRandomSolution)
+from roar_net_api.values import Float
 
 from representation import Connection, Plan, ShortestPath, VehiclePlan
 
@@ -125,7 +126,7 @@ class Solution(SupportsCopySolution, SupportsObjectiveValue, SupportsLowerBound)
 
 
 @final
-class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]):
+class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution, Float]):
     def __init__(self, neighbourhood: AddNeighbourhood, connection: Connection, vehicle_id: Optional[str] = None):
         self.neighbourhood = neighbourhood
         self.connection = connection
@@ -144,7 +145,7 @@ class AddMove(SupportsApplyMove[Solution], SupportsLowerBoundIncrement[Solution]
 
 
 @final
-class RelocateMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
+class RelocateMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution, Float]):
     def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1Key: str, iveh2: int, veh2Key: str):
         self.neighbourhood = neighbourhood
         # ix and jx are indices
@@ -193,7 +194,7 @@ class RelocateMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[
         
 
 @final
-class EdgeReverseMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
+class EdgeReverseMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution, Float]):
     def __init__(self, neighbourhood: EdgeReverseNeighbourhood, i: int, vehKey: str):
         self.neighbourhood = neighbourhood
         # ix and jx are indices
@@ -238,7 +239,7 @@ class EdgeReverseMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncreme
             return 1000
 
 @final
-class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution]):
+class SwapMove(SupportsApplyMove[Solution], SupportsObjectiveValueIncrement[Solution, Float]):
     def __init__(self, neighbourhood: SwapNeighbourhood, iveh1: int, veh1Key: str, iveh2: int, veh2Key: str):
         self.neighbourhood = neighbourhood
         # ix and jx are indices
