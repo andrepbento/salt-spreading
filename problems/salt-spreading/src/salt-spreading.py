@@ -7,7 +7,6 @@ import logging
 import random
 import sys
 from dataclasses import dataclass
-from dis import pretty_flags
 from logging import getLogger
 from typing import Any, Iterable, Optional, Protocol, Self, TextIO, TypeVar, final
 
